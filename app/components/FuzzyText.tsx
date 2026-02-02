@@ -88,7 +88,7 @@ const FuzzyText: React.FC<FuzzyTextProps> = ({
       const textBoundingWidth = Math.ceil(actualLeft + actualRight);
       const tightHeight = Math.ceil(actualAscent + actualDescent);
 
-      const extraWidthBuffer = 10;
+      const extraWidthBuffer = 40;
       const offscreenWidth = textBoundingWidth + extraWidthBuffer;
 
       offscreen.width = offscreenWidth;
