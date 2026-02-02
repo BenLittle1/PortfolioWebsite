@@ -69,7 +69,7 @@ export default function Navigation() {
             : 'bg-transparent'
         }`}
       >
-        <div className="max-w-[1400px] mx-auto px-8 md:px-16 lg:px-24 relative">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 relative">
           <div className="flex items-center justify-center h-16 md:h-20">
             {/* Desktop Links - Centered */}
             <div className="hidden md:flex items-center gap-8">

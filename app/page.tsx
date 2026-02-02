@@ -248,7 +248,7 @@ export default function Home() {
       <section
         id="current"
         data-animate
-        className="relative z-10 py-40 pointer-events-none"
+        className="relative z-10 py-32 pointer-events-none"
       >
         <div className="section-container pointer-events-auto">
           {/* Section Header */}
@@ -266,7 +266,7 @@ export default function Home() {
           </div>
 
           {/* Activities Grid */}
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-6">
             {activities.map((activity, index) => (
               <div
                 key={activity.title}
@@ -306,7 +306,7 @@ export default function Home() {
       <section
         id="projects"
         data-animate
-        className="relative z-10 py-40 pointer-events-none"
+        className="relative z-10 py-32 pointer-events-none"
       >
         <div className="section-container pointer-events-auto">
           {/* Section Header */}
@@ -324,7 +324,7 @@ export default function Home() {
           </div>
 
           {/* Projects Grid */}
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid md:grid-cols-2 gap-6">
             {projects.map((project, index) => (
               <div
                 key={project.title}
@@ -393,7 +393,7 @@ export default function Home() {
       <section
         id="contact"
         data-animate
-        className="relative z-10 pt-56 pb-40 pointer-events-none"
+        className="relative z-10 pt-48 pb-32 pointer-events-none"
       >
         <div className="section-container pointer-events-auto">
           <div className="max-w-4xl mx-auto text-center">
