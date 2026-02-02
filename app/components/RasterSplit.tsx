@@ -116,12 +116,9 @@ export default function RasterSplit({
     });
   }, [canvasDimensions]);
 
+  // Load image and prepare data
   useEffect(() => {
     if (!canvasRef.current) return;
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return;
 
     const img = new Image();
     img.src = imageSrc;
@@ -142,8 +139,6 @@ export default function RasterSplit({
         canvasWidth = maxHeight * imgAspect;
       }
 
-      setCanvasDimensions({ width: canvasWidth, height: canvasHeight });
-
       // Pre-cache image data
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = img.naturalWidth;
@@ -154,22 +149,8 @@ export default function RasterSplit({
         imageDataRef.current = tempCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight);
       }
 
-      // Calculate initial average color and render immediately
-      const avgColor = getAverageColorFast(0, 0, canvasWidth, canvasHeight, canvasWidth, canvasHeight);
-      rectanglesRef.current = [{
-        x: 0,
-        y: 0,
-        width: canvasWidth,
-        height: canvasHeight,
-        color: avgColor,
-      }];
-
-      // Draw initial state
-      canvas.width = canvasWidth;
-      canvas.height = canvasHeight;
-      ctx.fillStyle = avgColor;
-      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-
+      // Set dimensions - this triggers a re-render
+      setCanvasDimensions({ width: canvasWidth, height: canvasHeight });
       setIsLoaded(true);
     };
 
@@ -180,7 +161,42 @@ export default function RasterSplit({
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [imageSrc, maxWidth, maxHeight, getAverageColorFast]);
+  }, [imageSrc, maxWidth, maxHeight]);
+
+  // Draw initial state AFTER dimensions are set and component re-renders
+  useEffect(() => {
+    if (!isLoaded || !canvasRef.current || !imageDataRef.current) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const { width: canvasWidth, height: canvasHeight } = canvasDimensions;
+
+    // Calculate initial average color
+    const avgColor = getAverageColorFast(0, 0, canvasWidth, canvasHeight, canvasWidth, canvasHeight);
+
+    // Only set initial rectangle if we haven't started interacting
+    if (rectanglesRef.current.length === 0 ||
+        (rectanglesRef.current.length === 1 &&
+         rectanglesRef.current[0].width === canvasWidth &&
+         rectanglesRef.current[0].height === canvasHeight)) {
+      rectanglesRef.current = [{
+        x: 0,
+        y: 0,
+        width: canvasWidth,
+        height: canvasHeight,
+        color: avgColor,
+      }];
+    }
+
+    // Draw all rectangles
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    for (const rect of rectanglesRef.current) {
+      ctx.fillStyle = rect.color;
+      ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+    }
+  }, [isLoaded, canvasDimensions, getAverageColorFast]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isLoaded || !canvasRef.current || !imageRef.current) return;
