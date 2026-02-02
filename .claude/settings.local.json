@@ -5,7 +5,17 @@
       "Bash(npm install)",
       "Bash(npm run build:*)",
       "Bash(npm run dev:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(open http://localhost:3001)",
+      "WebFetch(domain:benlittle.netlify.app)",
+      "Bash(open http://localhost:3002)",
+      "Bash(curl:*)",
+      "Bash(gh repo list:*)",
+      "Bash(git add:*)",
+      "Bash(git push)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nUpgrade Next.js to 15.5.9 to fix security vulnerabilities\n\nFixes CVE-2025-55183, CVE-2025-55184, CVE-2025-66478, CVE-2025-67779\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd .npmrc to fix peer dependency conflict in CI\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
