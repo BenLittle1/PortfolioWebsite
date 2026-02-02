@@ -175,7 +175,7 @@ export default function Home() {
         </div>
 
         {/* Subtitle */}
-        <div className="mt-8 text-center pointer-events-none">
+        <div className="mt-16 text-center pointer-events-none">
           <p className="font-mono text-white/50 text-sm md:text-base tracking-widest uppercase">
             Commerce & Computer Science
           </p>
@@ -393,7 +393,7 @@ export default function Home() {
       <section
         id="contact"
         data-animate
-        className="relative z-10 py-32 pointer-events-none"
+        className="relative z-10 pt-48 pb-32 pointer-events-none"
       >
         <div className="section-container pointer-events-auto">
           <div className="max-w-4xl mx-auto text-center">

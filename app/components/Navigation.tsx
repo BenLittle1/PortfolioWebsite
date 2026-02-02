@@ -20,6 +20,15 @@ export default function Navigation() {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
 
+      // Check if scrolled to bottom of page - activate Contact
+      const scrolledToBottom =
+        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 100;
+
+      if (scrolledToBottom) {
+        setActiveSection('contact');
+        return;
+      }
+
       // Determine active section
       const sections = navItems.map((item) => item.href.slice(1));
       for (const section of sections.reverse()) {
@@ -40,9 +49,13 @@ export default function Navigation() {
 
   const handleNavClick = (href: string) => {
     setIsOpen(false);
-    const el = document.querySelector(href);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
+    if (href === '#hero') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      const el = document.querySelector(href);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
     }
   };
 
@@ -52,7 +65,7 @@ export default function Navigation() {
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled
-            ? 'bg-black/80 backdrop-blur-md border-b border-white/5'
+            ? 'bg-black/80 backdrop-blur-md'
             : 'bg-transparent'
         }`}
       >
