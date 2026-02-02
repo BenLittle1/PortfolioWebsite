@@ -152,10 +152,16 @@ export default function RasterSplit({
       const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
       if (tempCtx) {
         tempCtx.drawImage(img, 0, 0);
-        imageDataRef.current = tempCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight);
+        try {
+          imageDataRef.current = tempCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight);
+        } catch {
+          // CORS issue - fall back to drawing the image directly
+          console.warn('Could not get image data, falling back to direct draw');
+        }
       }
 
-      setTimeout(() => {
+      // Use requestAnimationFrame to ensure canvas is ready
+      requestAnimationFrame(() => {
         setIsLoaded(true);
 
         const avgColor = getAverageColorFast(0, 0, canvasWidth, canvasHeight, canvasWidth, canvasHeight);
@@ -167,10 +173,18 @@ export default function RasterSplit({
           color: avgColor,
         }];
 
-        // Initial render
-        ctx.fillStyle = avgColor;
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-      }, 0);
+        // Initial render - get fresh context reference
+        const currentCtx = canvas.getContext('2d');
+        if (currentCtx) {
+          currentCtx.fillStyle = avgColor;
+          currentCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+        }
+      });
+    };
+
+    img.onerror = () => {
+      console.error('Failed to load image:', imageSrc);
+      setIsLoaded(true); // Allow interaction even if image fails
     };
 
     return () => {
@@ -345,6 +359,7 @@ export default function RasterSplit({
         display: 'block',
         cursor: 'crosshair',
         borderRadius: `${borderRadius}px`,
+        backgroundColor: isLoaded ? 'transparent' : '#1a1a1a',
       }}
     />
   );
