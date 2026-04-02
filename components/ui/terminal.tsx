@@ -1,0 +1,840 @@
+"use client";
+import Image from "next/image";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
+
+const KEY_SOUNDS_DOWN: Record<string, [number, number]> = {
+  A: [31542, 85],
+  B: [40621, 107],
+  C: [39632, 95],
+  D: [32492, 85],
+  E: [23317, 83],
+  F: [32973, 87],
+  G: [33453, 94],
+  H: [33986, 93],
+  I: [25795, 91],
+  J: [34425, 88],
+  K: [34932, 90],
+  L: [35410, 95],
+  M: [41610, 93],
+  N: [41103, 90],
+  O: [26309, 84],
+  P: [26804, 83],
+  Q: [22245, 95],
+  R: [23817, 92],
+  S: [32031, 88],
+  T: [24297, 92],
+  U: [25313, 95],
+  V: [40136, 94],
+  W: [22790, 89],
+  X: [39148, 76],
+  Y: [24811, 93],
+  Z: [38694, 80],
+  " ": [51541, 144],
+  "-": [42594, 90],
+  "@": [23317, 83],
+  "/": [42594, 90],
+  ".": [42594, 90],
+  ":": [42594, 90],
+  "0": [26309, 84],
+  "1": [25313, 95],
+  "2": [23317, 83],
+  "3": [23817, 92],
+  "4": [24297, 92],
+  "5": [24811, 93],
+  "6": [25313, 95],
+  "7": [25795, 91],
+  "8": [26309, 84],
+  "9": [26804, 83],
+  Enter: [19065, 110],
+};
+
+const KEY_SOUNDS_UP: Record<string, [number, number]> = {
+  A: [31632, 80],
+  B: [40736, 95],
+  C: [39732, 85],
+  D: [32577, 80],
+  E: [23402, 80],
+  F: [33063, 80],
+  G: [33553, 85],
+  H: [34081, 85],
+  I: [25890, 85],
+  J: [34515, 85],
+  K: [35027, 85],
+  L: [35510, 85],
+  M: [41710, 85],
+  N: [41198, 85],
+  O: [26394, 80],
+  P: [26889, 80],
+  Q: [22345, 85],
+  R: [23912, 85],
+  S: [32121, 80],
+  T: [24392, 85],
+  U: [25413, 85],
+  V: [40236, 85],
+  W: [22880, 85],
+  X: [39228, 70],
+  Y: [24911, 85],
+  Z: [38779, 75],
+  " ": [51691, 130],
+  "-": [42689, 85],
+  "@": [23402, 80],
+  "/": [42689, 85],
+  ".": [42689, 85],
+  ":": [42689, 85],
+  "0": [26394, 80],
+  "1": [25413, 85],
+  "2": [23402, 80],
+  "3": [23912, 85],
+  "4": [24392, 85],
+  "5": [24911, 85],
+  "6": [25413, 85],
+  "7": [25890, 85],
+  "8": [26394, 80],
+  "9": [26889, 80],
+  Enter: [19180, 100],
+};
+
+function useAudio(enabled: boolean) {
+  const ctxRef = useRef<AudioContext | null>(null);
+  const bufferRef = useRef<AudioBuffer | null>(null);
+  const readyRef = useRef(false);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const init = async () => {
+      try {
+        ctxRef.current = new AudioContext();
+        const res = await fetch("/sounds/sound.ogg");
+        if (!res.ok) return;
+        bufferRef.current = await ctxRef.current.decodeAudioData(
+          await res.arrayBuffer(),
+        );
+        readyRef.current = true;
+      } catch {}
+    };
+    init();
+    return () => {
+      ctxRef.current?.close();
+    };
+  }, [enabled]);
+
+  const playSound = (sound: [number, number] | undefined) => {
+    if (!readyRef.current || !ctxRef.current || !bufferRef.current || !sound)
+      return;
+    if (ctxRef.current.state === "suspended") ctxRef.current.resume();
+    const src = ctxRef.current.createBufferSource();
+    src.buffer = bufferRef.current;
+    src.connect(ctxRef.current.destination);
+    src.start(0, sound[0] / 1000, sound[1] / 1000);
+  };
+
+  const down = (key: string) =>
+    playSound(KEY_SOUNDS_DOWN[key.toUpperCase()] || KEY_SOUNDS_DOWN[key]);
+  const up = (key: string) =>
+    playSound(KEY_SOUNDS_UP[key.toUpperCase()] || KEY_SOUNDS_UP[key]);
+
+  return { down, up };
+}
+
+function useInView(ref: React.RefObject<HTMLElement | null>, once = true) {
+  const [inView, setInView] = useState(false);
+  const triggered = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || (once && triggered.current)) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !triggered.current) {
+          setInView(true);
+          if (once) {
+            triggered.current = true;
+            observer.disconnect();
+          }
+        }
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref, once]);
+
+  return inView;
+}
+
+type TokenType =
+  | "command"
+  | "flag"
+  | "string"
+  | "number"
+  | "operator"
+  | "path"
+  | "variable"
+  | "comment"
+  | "default";
+
+interface Token {
+  type: TokenType;
+  value: string;
+}
+
+export function tokenizeBash(text: string): Token[] {
+  const tokens: Token[] = [];
+  const words = text.split(/(\s+)/);
+
+  let isFirstWord = true;
+
+  for (const word of words) {
+    if (/^\s+$/.test(word)) {
+      tokens.push({ type: "default", value: word });
+      continue;
+    }
+
+    if (word.startsWith("#")) {
+      tokens.push({ type: "comment", value: word });
+      continue;
+    }
+
+    if (word.startsWith("$")) {
+      tokens.push({ type: "variable", value: word });
+      isFirstWord = false;
+      continue;
+    }
+
+    if (word.startsWith("--") || word.startsWith("-")) {
+      tokens.push({ type: "flag", value: word });
+      isFirstWord = false;
+      continue;
+    }
+
+    if (/^["'].*["']$/.test(word)) {
+      tokens.push({ type: "string", value: word });
+      isFirstWord = false;
+      continue;
+    }
+
+    if (/^\d+$/.test(word)) {
+      tokens.push({ type: "number", value: word });
+      isFirstWord = false;
+      continue;
+    }
+
+    if (/^[|>&<]+$/.test(word)) {
+      tokens.push({ type: "operator", value: word });
+      isFirstWord = true;
+      continue;
+    }
+
+    if (word.includes("/") || word.startsWith(".") || word.startsWith("~")) {
+      tokens.push({ type: "path", value: word });
+      isFirstWord = false;
+      continue;
+    }
+
+    if (isFirstWord) {
+      tokens.push({ type: "command", value: word });
+      isFirstWord = false;
+      continue;
+    }
+
+    tokens.push({ type: "default", value: word });
+  }
+
+  return tokens;
+}
+
+const tokenColors: Record<TokenType, string> = {
+  command: "text-emerald-400",
+  flag: "text-sky-400",
+  string: "text-amber-300",
+  number: "text-purple-400",
+  operator: "text-red-400",
+  path: "text-cyan-300",
+  variable: "text-pink-400",
+  comment: "text-neutral-500",
+  default: "text-neutral-300",
+};
+
+export function SyntaxHighlightedText({ text }: { text: string }) {
+  const tokens = tokenizeBash(text);
+
+  return (
+    <>
+      {tokens.map((token, i) => (
+        <span key={i} className={tokenColors[token.type]}>
+          {token.value}
+        </span>
+      ))}
+    </>
+  );
+}
+
+export type TerminalOutputTone =
+  | "default"
+  | "muted"
+  | "accent"
+  | "success"
+  | "warning";
+
+export interface TerminalOutput {
+  content?: string;
+  tone?: TerminalOutputTone;
+  href?: string;
+  external?: boolean;
+  imageSrc?: string;
+  imageAlt?: string;
+}
+
+export type TerminalOutputLike = string | TerminalOutput;
+
+export interface TerminalCommandResult {
+  outputs?: TerminalOutputLike[];
+  clear?: boolean;
+}
+
+export interface TerminalQuickAction {
+  label: string;
+  command: string;
+}
+
+interface TerminalLine {
+  type: "command" | "output" | "image";
+  content: string;
+  tone?: TerminalOutputTone;
+  href?: string;
+  external?: boolean;
+  imageSrc?: string;
+  imageAlt?: string;
+}
+
+const outputColors: Record<TerminalOutputTone, string> = {
+  default: "text-neutral-400",
+  muted: "text-neutral-500",
+  accent: "text-lavender",
+  success: "text-emerald-300",
+  warning: "text-amber-300",
+};
+
+function normalizeOutput(output: TerminalOutputLike): TerminalLine {
+  if (typeof output === "string") {
+    return { type: "output", content: output };
+  }
+
+  if (output.imageSrc) {
+    return {
+      type: "image",
+      content: output.content ?? "",
+      tone: output.tone,
+      imageSrc: output.imageSrc,
+      imageAlt: output.imageAlt,
+    };
+  }
+
+  return {
+    type: "output",
+    content: output.content ?? "",
+    tone: output.tone,
+    href: output.href,
+    external: output.external,
+  };
+}
+
+function normalizeOutputs(outputs: TerminalOutputLike[] = []): TerminalLine[] {
+  return outputs.map(normalizeOutput);
+}
+
+function wait(duration: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, duration);
+  });
+}
+
+export interface TerminalProps {
+  commands?: string[];
+  outputs?: Record<number, TerminalOutputLike[]>;
+  username?: string;
+  className?: string;
+  contentClassName?: string;
+  typingSpeed?: number;
+  interactiveTypingSpeed?: number;
+  delayBetweenCommands?: number;
+  initialDelay?: number;
+  scriptedOutputLineDelay?: number;
+  interactiveOutputLineDelay?: number;
+  enableSound?: boolean;
+  interactive?: boolean;
+  onCommand?: (
+    command: string,
+  ) => TerminalCommandResult | Promise<TerminalCommandResult>;
+  quickActions?: TerminalQuickAction[];
+}
+
+export function Terminal({
+  commands = ["npx shadcn@latest init"],
+  outputs = {},
+  username = "Manus-Macbook",
+  className,
+  contentClassName,
+  typingSpeed = 50,
+  interactiveTypingSpeed = typingSpeed,
+  delayBetweenCommands = 800,
+  initialDelay = 500,
+  scriptedOutputLineDelay = 150,
+  interactiveOutputLineDelay = 90,
+  enableSound = true,
+  interactive = false,
+  onCommand,
+  quickActions = [],
+}: TerminalProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const inView = useInView(containerRef);
+  const { down, up } = useAudio(enableSound);
+
+  const [lines, setLines] = useState<TerminalLine[]>([]);
+  const [currentText, setCurrentText] = useState("");
+  const [commandIdx, setCommandIdx] = useState(0);
+  const [charIdx, setCharIdx] = useState(0);
+  const [outputIdx, setOutputIdx] = useState(-1);
+  const [phase, setPhase] = useState<
+    "idle" | "typing" | "executing" | "outputting" | "pausing" | "done"
+  >("idle");
+  const [cursorVisible, setCursorVisible] = useState(true);
+  const [inputValue, setInputValue] = useState("");
+  const [history, setHistory] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAutoTyping, setIsAutoTyping] = useState(false);
+  const historyIndexRef = useRef<number | null>(null);
+
+  const hasScriptedCommands = commands.length > 0;
+  const currentCommand = commands[commandIdx] || "";
+  const currentOutputs = useMemo(
+    () => normalizeOutputs(outputs[commandIdx] || []),
+    [outputs, commandIdx],
+  );
+  const isLastCommand = commandIdx === commands.length - 1;
+  const canInteract = interactive && phase === "done" && Boolean(onCommand);
+  const interactiveBusy = isSubmitting || isAutoTyping;
+
+  useEffect(() => {
+    if (!inView || phase !== "idle") return;
+    const t = setTimeout(
+      () => setPhase(hasScriptedCommands ? "typing" : "done"),
+      initialDelay,
+    );
+    return () => clearTimeout(t);
+  }, [hasScriptedCommands, inView, phase, initialDelay]);
+
+  useEffect(() => {
+    if (!hasScriptedCommands) return;
+    if (phase !== "typing") return;
+
+    if (charIdx < currentCommand.length) {
+      const char = currentCommand[charIdx];
+      down(char);
+      const t = setTimeout(
+        () => {
+          up(char);
+          setCurrentText(currentCommand.slice(0, charIdx + 1));
+          setCharIdx((c) => c + 1);
+        },
+        typingSpeed + Math.random() * 30,
+      );
+      return () => clearTimeout(t);
+    } else {
+      down("Enter");
+      const t = setTimeout(() => {
+        up("Enter");
+        setPhase("executing");
+      }, 80);
+      return () => clearTimeout(t);
+    }
+  }, [hasScriptedCommands, phase, charIdx, currentCommand, typingSpeed, down, up]);
+
+  useEffect(() => {
+    if (!hasScriptedCommands) return;
+    if (phase !== "executing") return;
+
+    setLines((prev) => [...prev, { type: "command", content: currentCommand }]);
+    setCurrentText("");
+
+    if (currentOutputs.length > 0) {
+      setOutputIdx(0);
+      setPhase("outputting");
+    } else if (isLastCommand) {
+      setPhase("done");
+    } else {
+      setPhase("pausing");
+    }
+  }, [hasScriptedCommands, phase, currentCommand, currentOutputs.length, isLastCommand]);
+
+  useEffect(() => {
+    if (!hasScriptedCommands) return;
+    if (phase !== "outputting") return;
+
+    if (outputIdx >= 0 && outputIdx < currentOutputs.length) {
+      const t = setTimeout(() => {
+        setLines((prev) => [
+          ...prev,
+          currentOutputs[outputIdx],
+        ]);
+        setOutputIdx((i) => i + 1);
+      }, scriptedOutputLineDelay);
+      return () => clearTimeout(t);
+    } else if (outputIdx >= currentOutputs.length) {
+      const t = setTimeout(() => {
+        if (isLastCommand) {
+          setPhase("done");
+        } else {
+          setPhase("pausing");
+        }
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [
+    hasScriptedCommands,
+    phase,
+    outputIdx,
+    currentOutputs,
+    isLastCommand,
+    scriptedOutputLineDelay,
+  ]);
+
+  useEffect(() => {
+    if (!hasScriptedCommands) return;
+    if (phase !== "pausing") return;
+    const t = setTimeout(() => {
+      setCharIdx(0);
+      setOutputIdx(-1);
+      setCommandIdx((c) => c + 1);
+      setPhase("typing");
+    }, delayBetweenCommands);
+    return () => clearTimeout(t);
+  }, [hasScriptedCommands, phase, delayBetweenCommands]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setCursorVisible((v) => !v), 530);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = contentRef.current.scrollHeight;
+    }
+  }, [lines, phase, currentText, inputValue, canInteract, interactiveBusy]);
+
+  useEffect(() => {
+    if (canInteract && !interactiveBusy) {
+      inputRef.current?.focus();
+    }
+  }, [canInteract, interactiveBusy]);
+
+  const executeInteractiveCommand = useMemo(
+    () =>
+      async (rawCommand: string) => {
+        const command = rawCommand.trim();
+
+        if (!command || !onCommand) {
+          return;
+        }
+
+        setIsSubmitting(true);
+        setInputValue("");
+        historyIndexRef.current = null;
+
+        setHistory((prev) =>
+          prev[prev.length - 1] === command ? prev : [...prev, command],
+        );
+
+        try {
+          const result = await onCommand(command);
+          const nextOutputs = normalizeOutputs(result.outputs ?? []);
+
+          if (result.clear) {
+            setLines(nextOutputs);
+          } else {
+            setLines((prev) => [...prev, { type: "command", content: command }]);
+
+            for (const output of nextOutputs) {
+              await wait(interactiveOutputLineDelay);
+              setLines((prev) => [...prev, output]);
+            }
+          }
+        } catch {
+          setLines((prev) => [...prev, { type: "command", content: command }]);
+          await wait(interactiveOutputLineDelay);
+          setLines((prev) => [
+            ...prev,
+            {
+              type: "output",
+              content: "Something went wrong while running that command.",
+              tone: "warning",
+            },
+          ]);
+        } finally {
+          setIsSubmitting(false);
+          inputRef.current?.focus();
+        }
+      },
+    [interactiveOutputLineDelay, onCommand],
+  );
+
+  const typeAndRunInteractiveCommand = useMemo(
+    () =>
+      async (rawCommand: string) => {
+        const command = rawCommand.trim();
+
+        if (!command) {
+          return;
+        }
+
+        setIsAutoTyping(true);
+        setInputValue("");
+        historyIndexRef.current = null;
+
+        for (let index = 0; index < command.length; index += 1) {
+          const char = command[index];
+          down(char);
+          await wait(interactiveTypingSpeed + Math.random() * 20);
+          up(char);
+          setInputValue(command.slice(0, index + 1));
+        }
+
+        down("Enter");
+        await wait(80);
+        up("Enter");
+        setIsAutoTyping(false);
+
+        await executeInteractiveCommand(command);
+      },
+    [down, executeInteractiveCommand, interactiveTypingSpeed, up],
+  );
+
+  const prompt = (
+    <span className="text-neutral-500">
+      <span className="text-sky-500">{username}</span>
+      <span className="text-emerald-600">:</span>
+      <span className="text-sky-400">~</span>
+      <span className="text-neutral-500">$</span>{" "}
+    </span>
+  );
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canInteract || interactiveBusy) return;
+    void executeInteractiveCommand(inputValue);
+  };
+
+  const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "ArrowUp" && history.length > 0) {
+      event.preventDefault();
+      const currentIndex = historyIndexRef.current;
+      const nextIndex =
+        currentIndex === null
+          ? history.length - 1
+          : Math.max(0, currentIndex - 1);
+      historyIndexRef.current = nextIndex;
+      setInputValue(history[nextIndex]);
+      return;
+    }
+
+    if (event.key === "ArrowDown" && history.length > 0) {
+      event.preventDefault();
+      const currentIndex = historyIndexRef.current;
+      if (currentIndex === null) {
+        return;
+      }
+
+      const nextIndex = currentIndex + 1;
+
+      if (nextIndex >= history.length) {
+        historyIndexRef.current = null;
+        setInputValue("");
+        return;
+      }
+
+      historyIndexRef.current = nextIndex;
+      setInputValue(history[nextIndex]);
+    }
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className={cn(
+        "mx-auto w-full max-w-xl px-4 font-mono text-xs",
+        className,
+      )}
+    >
+      <div className="overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900 shadow-2xl">
+        {/* Title Bar */}
+        <div className="flex items-center gap-2 bg-neutral-800 px-4 py-3">
+          <div className="flex items-center gap-1.5">
+            <div className="h-3 w-3 rounded-full bg-red-500 transition-colors hover:bg-red-600" />
+            <div className="h-3 w-3 rounded-full bg-yellow-500 transition-colors hover:bg-yellow-600" />
+            <div className="h-3 w-3 rounded-full bg-green-500 transition-colors hover:bg-green-600" />
+          </div>
+          <div className="flex-1 text-center">
+            <span className="truncate text-xs text-neutral-400">
+              {username} — bash
+            </span>
+          </div>
+          <div className="w-[52px]" />
+        </div>
+
+        {/* Terminal Content */}
+        <div
+          ref={contentRef}
+          className={cn(
+            "no-visible-scrollbar h-80 overflow-y-auto p-4 font-mono",
+            contentClassName,
+          )}
+          onClick={() => {
+            if (canInteract) {
+              inputRef.current?.focus();
+            }
+          }}
+        >
+          {lines.map((line, i) => (
+            <div
+              key={i}
+              className={cn(
+                "leading-relaxed",
+                line.type !== "image" && "whitespace-pre-wrap",
+              )}
+            >
+              {line.type === "command" ? (
+                <span>
+                  {prompt}
+                  <SyntaxHighlightedText text={line.content} />
+                </span>
+              ) : line.type === "image" ? (
+                <div className="mt-2 w-full max-w-[14rem] overflow-hidden rounded-md border border-neutral-700 bg-black/40 p-2 md:max-w-[17rem]">
+                  <Image
+                    src={line.imageSrc!}
+                    alt={line.imageAlt ?? "Terminal image output"}
+                    width={896}
+                    height={1152}
+                    className="block h-auto w-full rounded-sm object-cover"
+                  />
+                  {line.content ? (
+                    <span className="mt-2 block text-xs text-neutral-500">
+                      {line.content}
+                    </span>
+                  ) : null}
+                </div>
+              ) : line.href ? (
+                <a
+                  href={line.href}
+                  target={line.external ? "_blank" : undefined}
+                  rel={line.external ? "noopener noreferrer" : undefined}
+                  className={cn(
+                    "inline-flex items-center gap-2 underline decoration-neutral-700 underline-offset-4 transition hover:text-white",
+                    outputColors[line.tone ?? "default"],
+                  )}
+                >
+                  {line.content}
+                </a>
+              ) : (
+                <span className={outputColors[line.tone ?? "default"]}>
+                  {line.content}
+                </span>
+              )}
+            </div>
+          ))}
+
+          {phase === "typing" && (
+            <div className="leading-relaxed whitespace-pre-wrap">
+              {prompt}
+              <SyntaxHighlightedText text={currentText} />
+              <span className="ml-0.5 inline-block h-4 w-2 bg-neutral-300 align-middle" />
+            </div>
+          )}
+
+          {(phase === "done" ||
+            phase === "pausing" ||
+            phase === "outputting") &&
+            !canInteract && (
+            <div className="leading-relaxed whitespace-pre-wrap">
+              {prompt}
+              <span
+                className={cn(
+                  "inline-block h-4 w-2 bg-neutral-300 align-middle transition-opacity duration-100",
+                  !cursorVisible && "opacity-0",
+                )}
+              />
+            </div>
+          )}
+
+          {interactive && phase === "done" && !isSubmitting && (
+            <form onSubmit={handleSubmit}>
+              <label htmlFor="terminal-command-input" className="sr-only">
+                Terminal command input
+              </label>
+              <div
+                className="flex items-start gap-1.5 leading-relaxed whitespace-pre-wrap"
+                onClick={() => inputRef.current?.focus()}
+              >
+                <span className="shrink-0">{prompt}</span>
+                <div className="relative min-w-0 flex-1">
+                  <input
+                    id="terminal-command-input"
+                    ref={inputRef}
+                    value={inputValue}
+                    onChange={(event) => {
+                      setInputValue(event.target.value);
+                      historyIndexRef.current = null;
+                    }}
+                    onKeyDown={handleInputKeyDown}
+                    disabled={!canInteract || interactiveBusy}
+                    autoCapitalize="none"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="absolute inset-0 h-full w-full opacity-0"
+                  />
+                  <div className="min-h-5 break-all text-neutral-300">
+                    {inputValue ? <SyntaxHighlightedText text={inputValue} /> : null}
+                    <span
+                      className={cn(
+                        "ml-0.5 inline-block h-4 w-2 align-middle transition-opacity duration-100",
+                        canInteract && !interactiveBusy
+                          ? "bg-neutral-300"
+                          : "bg-neutral-500",
+                        !cursorVisible && "opacity-0",
+                      )}
+                    />
+                  </div>
+                </div>
+              </div>
+            </form>
+          )}
+        </div>
+
+        {interactive && quickActions.length > 0 && (
+          <div className="border-t border-neutral-800 bg-neutral-900/90 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="mr-2 text-neutral-500">quick:</span>
+              {quickActions.map((action) => (
+                <button
+                  key={action.command}
+                  type="button"
+                  onClick={() => {
+                    if (!canInteract || interactiveBusy) return;
+                    void typeAndRunInteractiveCommand(action.command);
+                  }}
+                  disabled={!canInteract || interactiveBusy}
+                  className="rounded-full border border-neutral-700 px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] text-neutral-400 transition hover:border-sky-500/40 hover:text-sky-300 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

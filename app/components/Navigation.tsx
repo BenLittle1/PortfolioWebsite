@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { FiMenu, FiX } from 'react-icons/fi';
 
@@ -87,6 +88,12 @@ export default function Navigation() {
               >
                 Resume
               </a>
+              <Link
+                href="/terminal"
+                className="px-4 py-2 text-sm font-mono tracking-wider uppercase border border-white/10 text-white/70 hover:border-lavender/50 hover:text-lavender hover:bg-white/5 transition-all rounded"
+              >
+                Terminal
+              </Link>
             </div>
 
           </div>
@@ -140,6 +147,18 @@ export default function Navigation() {
           >
             Resume
           </a>
+          <Link
+            href="/terminal"
+            onClick={() => setIsOpen(false)}
+            className="px-6 py-3 text-lg font-display font-semibold border border-white/10 text-white/70 hover:text-lavender hover:border-lavender/50 hover:bg-white/5 transition-all rounded-lg"
+            style={{
+              transitionDelay: isOpen ? `${(navItems.length + 1) * 50}ms` : '0ms',
+              transform: isOpen ? 'translateY(0)' : 'translateY(20px)',
+              opacity: isOpen ? 1 : 0,
+            }}
+          >
+            Terminal
+          </Link>
         </div>
       </div>
     </>
