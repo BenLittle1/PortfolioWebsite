@@ -8,7 +8,6 @@ const navItems = [
   { label: 'About', href: '#about' },
   { label: 'Current', href: '#current' },
   { label: 'Projects', href: '#projects' },
-  { label: 'Contact', href: '#contact' },
 ];
 
 export default function Navigation() {
@@ -19,15 +18,6 @@ export default function Navigation() {
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
-
-      // Check if scrolled to bottom of page - activate Contact
-      const scrolledToBottom =
-        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 100;
-
-      if (scrolledToBottom) {
-        setActiveSection('contact');
-        return;
-      }
 
       // Determine active section
       const sections = navItems.map((item) => item.href.slice(1));

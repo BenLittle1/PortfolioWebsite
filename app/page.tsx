@@ -7,7 +7,7 @@ import FuzzyTypewriter from './components/FuzzyTypewriter';
 import ProfileSection from './components/ProfileSection';
 import Navigation from './components/Navigation';
 import ScrambledText from './components/ScrambledText';
-import { FiLinkedin, FiGithub, FiMail, FiFileText, FiChevronDown, FiArrowUpRight } from 'react-icons/fi';
+import { FiLinkedin, FiGithub, FiMail, FiFileText, FiChevronDown } from 'react-icons/fi';
 
 // Activity data
 const activities = [
@@ -71,7 +71,7 @@ export default function Home() {
   const [isHoveringName, setIsHoveringName] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const [visibleSections, setVisibleSections] = useState<Set<string>>(new Set());
-  const [copiedEmail, setCopiedEmail] = useState(false);
+
 
   useEffect(() => {
     const handleScroll = () => {
@@ -104,16 +104,6 @@ export default function Home() {
     const aboutSection = document.getElementById('about');
     if (aboutSection) {
       aboutSection.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  const handleCopyEmail = async () => {
-    try {
-      await navigator.clipboard.writeText('ben.little@queensu.ca');
-      setCopiedEmail(true);
-      setTimeout(() => setCopiedEmail(false), 2000);
-    } catch {
-      window.location.href = 'mailto:ben.little@queensu.ca';
     }
   };
 
@@ -387,108 +377,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          CONTACT SECTION
-      ═══════════════════════════════════════════════════════════════════ */}
-      <section
-        id="contact"
-        data-animate
-        className="relative z-10 pt-48 pb-32 pointer-events-none"
-      >
-        <div className="section-container pointer-events-auto">
-          <div className="max-w-4xl mx-auto text-center">
-            {/* Main CTA */}
-            <div
-              className={`mb-12 transition-all duration-700 ${
-                visibleSections.has('contact')
-                  ? 'opacity-100 translate-y-0'
-                  : 'opacity-0 translate-y-8'
-              }`}
-            >
-              <h2 className="font-display text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
-                Let&apos;s build
-                <br />
-                <span className="gradient-text">something together</span>
-              </h2>
-              <p className="text-white/50 font-mono text-base md:text-lg max-w-xl mx-auto">
-                Always open to discussing new opportunities, interesting projects, or just
-                chatting about tech and innovation.
-              </p>
-            </div>
-
-            {/* Email CTA */}
-            <div
-              className={`mb-16 transition-all duration-500 delay-150 ${
-                visibleSections.has('contact')
-                  ? 'opacity-100 translate-y-0'
-                  : 'opacity-0 translate-y-8'
-              }`}
-            >
-              <button
-                onClick={handleCopyEmail}
-                className="group relative inline-flex items-center gap-3 px-8 py-4 bg-lavender/10 border border-lavender/30 rounded-full text-lavender hover:bg-lavender/20 hover:border-lavender/50 transition-all"
-              >
-                <FiMail size={20} />
-                <span className="font-mono text-lg">ben.little@queensu.ca</span>
-                <FiArrowUpRight
-                  size={18}
-                  className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all"
-                />
-                {copiedEmail && (
-                  <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1 bg-lavender text-black text-xs font-mono rounded">
-                    Copied!
-                  </span>
-                )}
-              </button>
-            </div>
-
-            {/* Social Links */}
-            <div
-              className={`flex flex-wrap justify-center gap-6 transition-all duration-500 delay-300 ${
-                visibleSections.has('contact') ? 'opacity-100' : 'opacity-0'
-              }`}
-            >
-              <a
-                href="https://www.linkedin.com/in/benjamin-little1"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex items-center gap-3 px-4 py-2 text-white/50 hover:text-lavender transition-colors"
-              >
-                <FiLinkedin size={20} />
-                <span className="font-mono text-sm">LinkedIn</span>
-              </a>
-              <a
-                href="https://github.com/BenLittle1"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex items-center gap-3 px-4 py-2 text-white/50 hover:text-lavender transition-colors"
-              >
-                <FiGithub size={20} />
-                <span className="font-mono text-sm">GitHub</span>
-              </a>
-              <a
-                href="mailto:ben.little@queensu.ca"
-                className="group flex items-center gap-3 px-4 py-2 text-white/50 hover:text-lavender transition-colors"
-              >
-                <FiMail size={20} />
-                <span className="font-mono text-sm">Email</span>
-              </a>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div
-            className={`mt-24 pt-8 border-t border-white/5 transition-all duration-500 delay-500 ${
-              visibleSections.has('contact') ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-white/30 text-sm font-mono">
-              <p>Designed & Built by Ben Little</p>
-              <p>&copy; {new Date().getFullYear()} All rights reserved.</p>
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
