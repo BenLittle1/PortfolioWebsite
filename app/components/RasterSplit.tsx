@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface RasterSplitProps {
   imageSrc: string;
@@ -11,6 +11,8 @@ interface RasterSplitProps {
   borderRadius?: number;
   splitMode?: 'half' | 'quadrant';
   splitRadius?: number;
+  minCellSize?: number;
+  onInteractionStart?: () => void;
 }
 
 interface Rectangle {
@@ -19,6 +21,19 @@ interface Rectangle {
   width: number;
   height: number;
   color: string;
+}
+
+const DEFAULT_DIMENSIONS = { width: 500, height: 500 };
+
+function distanceToRectangle(
+  x: number,
+  y: number,
+  rect: Pick<Rectangle, 'x' | 'y' | 'width' | 'height'>
+) {
+  const dx = Math.max(rect.x - x, 0, x - (rect.x + rect.width));
+  const dy = Math.max(rect.y - y, 0, y - (rect.y + rect.height));
+
+  return Math.sqrt(dx * dx + dy * dy);
 }
 
 export default function RasterSplit({
@@ -30,338 +45,403 @@ export default function RasterSplit({
   borderRadius = 16,
   splitMode = 'half',
   splitRadius = 0,
+  minCellSize = 2,
+  onInteractionStart,
 }: RasterSplitProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const imageRef = useRef<HTMLImageElement | null>(null);
   const imageDataRef = useRef<ImageData | null>(null);
   const rectanglesRef = useRef<Rectangle[]>([]);
   const lastPosRef = useRef<{ x: number; y: number } | null>(null);
   const rafRef = useRef<number | null>(null);
   const pendingRenderRef = useRef(false);
+  const hasInteractedRef = useRef(false);
+  const pointerDownRef = useRef(false);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [canvasDimensions, setCanvasDimensions] = useState({ width: maxWidth, height: maxHeight });
+  const [canvasDimensions, setCanvasDimensions] = useState(DEFAULT_DIMENSIONS);
 
-  // Memoized color sampling function
-  const getAverageColorFast = useCallback((
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    canvasWidth: number,
-    canvasHeight: number
-  ): string => {
-    if (!imageDataRef.current) return '#000000';
-    if (w <= 0 || h <= 0) return '#000000';
+  const getAverageColorFast = useCallback(
+    (
+      x: number,
+      y: number,
+      width: number,
+      height: number,
+      canvasWidth: number,
+      canvasHeight: number
+    ) => {
+      const imageData = imageDataRef.current;
 
-    const imgData = imageDataRef.current;
-    const imgWidth = imgData.width;
-    const imgHeight = imgData.height;
+      if (!imageData || width <= 0 || height <= 0) {
+        return '#000000';
+      }
 
-    const scaleX = imgWidth / canvasWidth;
-    const scaleY = imgHeight / canvasHeight;
+      const scaleX = imageData.width / canvasWidth;
+      const scaleY = imageData.height / canvasHeight;
 
-    const imgX = Math.floor(x * scaleX);
-    const imgY = Math.floor(y * scaleY);
-    const imgW = Math.floor(w * scaleX);
-    const imgH = Math.floor(h * scaleY);
+      const startX = Math.max(0, Math.floor(x * scaleX));
+      const startY = Math.max(0, Math.floor(y * scaleY));
+      const endX = Math.min(imageData.width, Math.ceil((x + width) * scaleX));
+      const endY = Math.min(imageData.height, Math.ceil((y + height) * scaleY));
+      const sampleWidth = Math.max(1, endX - startX);
+      const sampleHeight = Math.max(1, endY - startY);
+      const sampleArea = sampleWidth * sampleHeight;
+      const step = sampleArea > 10000 ? 8 : sampleArea > 2500 ? 4 : 2;
 
-    // Adaptive sampling - fewer samples for larger areas
-    const area = imgW * imgH;
-    const step = area > 10000 ? 8 : area > 2500 ? 4 : 2;
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      let sampleCount = 0;
 
-    let r = 0, g = 0, b = 0, count = 0;
-
-    for (let py = imgY; py < imgY + imgH; py += step) {
-      for (let px = imgX; px < imgX + imgW; px += step) {
-        if (px >= 0 && px < imgWidth && py >= 0 && py < imgHeight) {
-          const i = (py * imgWidth + px) * 4;
-          r += imgData.data[i];
-          g += imgData.data[i + 1];
-          b += imgData.data[i + 2];
-          count++;
+      for (let sampleY = startY; sampleY < endY; sampleY += step) {
+        for (let sampleX = startX; sampleX < endX; sampleX += step) {
+          const pixelIndex = (sampleY * imageData.width + sampleX) * 4;
+          red += imageData.data[pixelIndex];
+          green += imageData.data[pixelIndex + 1];
+          blue += imageData.data[pixelIndex + 2];
+          sampleCount += 1;
         }
       }
+
+      if (!sampleCount) {
+        return '#000000';
+      }
+
+      return `rgb(${Math.round(red / sampleCount)}, ${Math.round(
+        green / sampleCount
+      )}, ${Math.round(blue / sampleCount)})`;
+    },
+    []
+  );
+
+  const buildRectangle = useCallback(
+    (
+      x: number,
+      y: number,
+      width: number,
+      height: number,
+      canvasWidth: number,
+      canvasHeight: number
+    ): Rectangle | null => {
+      if (width <= 0 || height <= 0) {
+        return null;
+      }
+
+      return {
+        x,
+        y,
+        width,
+        height,
+        color: getAverageColorFast(x, y, width, height, canvasWidth, canvasHeight),
+      };
+    },
+    [getAverageColorFast]
+  );
+
+  const drawRectangles = useCallback(() => {
+    const canvas = canvasRef.current;
+
+    if (!canvas) {
+      return;
     }
 
-    if (count === 0) return '#000000';
+    const context = canvas.getContext('2d');
 
-    return `rgb(${(r / count) | 0}, ${(g / count) | 0}, ${(b / count) | 0})`;
-  }, []);
+    if (!context) {
+      return;
+    }
 
-  // Render using requestAnimationFrame for smoothness
+    context.clearRect(0, 0, canvasDimensions.width, canvasDimensions.height);
+
+    for (const rect of rectanglesRef.current) {
+      context.fillStyle = rect.color;
+      context.fillRect(rect.x, rect.y, rect.width, rect.height);
+    }
+  }, [canvasDimensions.height, canvasDimensions.width]);
+
   const scheduleRender = useCallback(() => {
-    if (pendingRenderRef.current) return;
+    if (pendingRenderRef.current) {
+      return;
+    }
+
     pendingRenderRef.current = true;
 
     rafRef.current = requestAnimationFrame(() => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
+      pendingRenderRef.current = false;
+      drawRectangles();
+    });
+  }, [drawRectangles]);
 
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+  const splitRectangle = useCallback(
+    (rect: Rectangle, canvasWidth: number, canvasHeight: number) => {
+      const canSplitHorizontally = rect.width > minCellSize;
+      const canSplitVertically = rect.height > minCellSize;
+      const nextRects: Rectangle[] = [];
 
-      const { width: canvasWidth, height: canvasHeight } = canvasDimensions;
+      const pushRect = (x: number, y: number, width: number, height: number) => {
+        const nextRect = buildRectangle(x, y, width, height, canvasWidth, canvasHeight);
 
-      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+        if (nextRect) {
+          nextRects.push(nextRect);
+        }
+      };
 
-      // Batch draw all rectangles
-      const rects = rectanglesRef.current;
-      for (let i = 0; i < rects.length; i++) {
-        const rect = rects[i];
-        ctx.fillStyle = rect.color;
-        ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+      if (!canSplitHorizontally && !canSplitVertically) {
+        return [];
       }
 
-      pendingRenderRef.current = false;
-    });
-  }, [canvasDimensions]);
+      if (splitMode === 'quadrant' && canSplitHorizontally && canSplitVertically) {
+        const halfWidth = rect.width / 2;
+        const halfHeight = rect.height / 2;
+        const leftWidth = Math.ceil(halfWidth);
+        const rightWidth = Math.floor(halfWidth);
+        const topHeight = Math.ceil(halfHeight);
+        const bottomHeight = Math.floor(halfHeight);
 
-  // Load image and prepare data
+        pushRect(rect.x, rect.y, leftWidth, topHeight);
+        pushRect(rect.x + leftWidth, rect.y, rightWidth, topHeight);
+        pushRect(rect.x, rect.y + topHeight, leftWidth, bottomHeight);
+        pushRect(rect.x + leftWidth, rect.y + topHeight, rightWidth, bottomHeight);
+      } else if (
+        canSplitHorizontally &&
+        (!canSplitVertically || rect.width >= rect.height)
+      ) {
+        const halfWidth = rect.width / 2;
+        const leftWidth = Math.ceil(halfWidth);
+        const rightWidth = Math.floor(halfWidth);
+
+        pushRect(rect.x, rect.y, leftWidth, rect.height);
+        pushRect(rect.x + leftWidth, rect.y, rightWidth, rect.height);
+      } else if (canSplitVertically) {
+        const halfHeight = rect.height / 2;
+        const topHeight = Math.ceil(halfHeight);
+        const bottomHeight = Math.floor(halfHeight);
+
+        pushRect(rect.x, rect.y, rect.width, topHeight);
+        pushRect(rect.x, rect.y + topHeight, rect.width, bottomHeight);
+      }
+
+      return nextRects;
+    },
+    [buildRectangle, minCellSize, splitMode]
+  );
+
   useEffect(() => {
-    if (!canvasRef.current) return;
+    let cancelled = false;
 
-    const img = new Image();
-    img.src = imageSrc;
+    setIsLoaded(false);
+    lastPosRef.current = null;
+    hasInteractedRef.current = false;
+    rectanglesRef.current = [];
 
-    img.onload = () => {
-      imageRef.current = img;
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = imageSrc;
 
-      const imgAspect = img.naturalWidth / img.naturalHeight;
+    image.onload = () => {
+      if (cancelled) {
+        return;
+      }
+
+      const imageAspect = image.naturalWidth / image.naturalHeight;
       const maxAspect = maxWidth / maxHeight;
 
-      let canvasWidth, canvasHeight;
+      const width = Math.round(imageAspect > maxAspect ? maxWidth : maxHeight * imageAspect);
+      const height = Math.round(imageAspect > maxAspect ? maxWidth / imageAspect : maxHeight);
 
-      if (imgAspect > maxAspect) {
-        canvasWidth = maxWidth;
-        canvasHeight = maxWidth / imgAspect;
-      } else {
-        canvasHeight = maxHeight;
-        canvasWidth = maxHeight * imgAspect;
-      }
-
-      // Pre-cache image data
       const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = img.naturalWidth;
-      tempCanvas.height = img.naturalHeight;
-      const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-      if (tempCtx) {
-        tempCtx.drawImage(img, 0, 0);
-        imageDataRef.current = tempCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight);
+      tempCanvas.width = image.naturalWidth;
+      tempCanvas.height = image.naturalHeight;
+
+      const tempContext = tempCanvas.getContext('2d', { willReadFrequently: true });
+
+      if (!tempContext) {
+        return;
       }
 
-      // Set dimensions - this triggers a re-render
-      setCanvasDimensions({ width: canvasWidth, height: canvasHeight });
+      tempContext.drawImage(image, 0, 0);
+      imageDataRef.current = tempContext.getImageData(0, 0, image.naturalWidth, image.naturalHeight);
+      setCanvasDimensions({ width, height });
       setIsLoaded(true);
     };
 
     return () => {
-      imageRef.current = null;
-      rectanglesRef.current = [];
+      cancelled = true;
+      imageDataRef.current = null;
+
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
       }
+
+      pendingRenderRef.current = false;
+      pointerDownRef.current = false;
     };
-  }, [imageSrc, maxWidth, maxHeight]);
+  }, [imageSrc, maxHeight, maxWidth]);
 
-  // Draw initial state AFTER dimensions are set and component re-renders
   useEffect(() => {
-    if (!isLoaded || !canvasRef.current || !imageDataRef.current) return;
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const { width: canvasWidth, height: canvasHeight } = canvasDimensions;
-
-    // Calculate initial average color
-    const avgColor = getAverageColorFast(0, 0, canvasWidth, canvasHeight, canvasWidth, canvasHeight);
-
-    // Only set initial rectangle if we haven't started interacting
-    if (rectanglesRef.current.length === 0 ||
-        (rectanglesRef.current.length === 1 &&
-         rectanglesRef.current[0].width === canvasWidth &&
-         rectanglesRef.current[0].height === canvasHeight)) {
-      rectanglesRef.current = [{
-        x: 0,
-        y: 0,
-        width: canvasWidth,
-        height: canvasHeight,
-        color: avgColor,
-      }];
+    if (!isLoaded || !imageDataRef.current) {
+      return;
     }
 
-    // Draw all rectangles
-    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-    for (const rect of rectanglesRef.current) {
-      ctx.fillStyle = rect.color;
-      ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
-    }
-  }, [isLoaded, canvasDimensions, getAverageColorFast]);
+    const initialRect = buildRectangle(
+      0,
+      0,
+      canvasDimensions.width,
+      canvasDimensions.height,
+      canvasDimensions.width,
+      canvasDimensions.height
+    );
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isLoaded || !canvasRef.current || !imageRef.current) return;
+    rectanglesRef.current = initialRect ? [initialRect] : [];
+    scheduleRender();
+  }, [buildRectangle, canvasDimensions.height, canvasDimensions.width, isLoaded, scheduleRender]);
 
-    const canvas = canvasRef.current;
-    const { width: canvasWidth, height: canvasHeight } = canvasDimensions;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * canvasWidth;
-    const y = ((e.clientY - rect.top) / rect.height) * canvasHeight;
-
-    // Check distance from last position
-    if (lastPosRef.current && minSplitDistance > 0) {
-      const dx = x - lastPosRef.current.x;
-      const dy = y - lastPosRef.current.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance < minSplitDistance) return;
-    }
-
-    lastPosRef.current = { x, y };
-
-    // Find rectangles to split
-    let targetRects: Rectangle[] = [];
-    const currentRects = rectanglesRef.current;
-    const minSize = 1; // Minimum rectangle size for fine detail
-
-    if (splitRadius > 0) {
-      const radiusSq = splitRadius * splitRadius;
-      targetRects = currentRects.filter((r) => {
-        if (r.width < minSize || r.height < minSize) return false;
-        const rectCenterX = r.x + r.width / 2;
-        const rectCenterY = r.y + r.height / 2;
-        const dx = x - rectCenterX;
-        const dy = y - rectCenterY;
-        return dx * dx + dy * dy <= radiusSq;
-      });
-    } else {
-      const targetRect = currentRects.find(
-        (r) => x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height
-      );
-      if (targetRect && targetRect.width >= minSize && targetRect.height >= minSize) {
-        targetRects = [targetRect];
+  const revealAtPoint = useCallback(
+    (clientX: number, clientY: number) => {
+      if (!isLoaded || !canvasRef.current) {
+        return;
       }
-    }
 
-    if (targetRects.length === 0) return;
+      const canvas = canvasRef.current;
+      const bounds = canvas.getBoundingClientRect();
 
-    // Create a Set for O(1) lookup
-    const targetSet = new Set(targetRects);
-    const newRects: Rectangle[] = [];
-
-    // Filter out targets and collect non-targets
-    for (let i = 0; i < currentRects.length; i++) {
-      if (!targetSet.has(currentRects[i])) {
-        newRects.push(currentRects[i]);
+      if (!bounds.width || !bounds.height) {
+        return;
       }
-    }
 
-    // Split each target rectangle
-    for (const targetRect of targetRects) {
-      if (splitMode === 'quadrant') {
-        const halfWidth = targetRect.width / 2;
-        const halfHeight = targetRect.height / 2;
-        const ceilW = Math.ceil(halfWidth);
-        const floorW = Math.floor(halfWidth);
-        const ceilH = Math.ceil(halfHeight);
-        const floorH = Math.floor(halfHeight);
+      const x = ((clientX - bounds.left) / bounds.width) * canvasDimensions.width;
+      const y = ((clientY - bounds.top) / bounds.height) * canvasDimensions.height;
 
-        newRects.push(
-          {
-            x: targetRect.x,
-            y: targetRect.y,
-            width: ceilW,
-            height: ceilH,
-            color: getAverageColorFast(targetRect.x, targetRect.y, ceilW, ceilH, canvasWidth, canvasHeight),
-          },
-          {
-            x: targetRect.x + ceilW,
-            y: targetRect.y,
-            width: floorW,
-            height: ceilH,
-            color: getAverageColorFast(targetRect.x + ceilW, targetRect.y, floorW, ceilH, canvasWidth, canvasHeight),
-          },
-          {
-            x: targetRect.x,
-            y: targetRect.y + ceilH,
-            width: ceilW,
-            height: floorH,
-            color: getAverageColorFast(targetRect.x, targetRect.y + ceilH, ceilW, floorH, canvasWidth, canvasHeight),
-          },
-          {
-            x: targetRect.x + ceilW,
-            y: targetRect.y + ceilH,
-            width: floorW,
-            height: floorH,
-            color: getAverageColorFast(targetRect.x + ceilW, targetRect.y + ceilH, floorW, floorH, canvasWidth, canvasHeight),
-          }
-        );
-      } else {
-        const isLandscape = targetRect.width > targetRect.height;
+      if (lastPosRef.current && minSplitDistance > 0) {
+        const deltaX = x - lastPosRef.current.x;
+        const deltaY = y - lastPosRef.current.y;
 
-        if (isLandscape) {
-          const halfWidth = targetRect.width / 2;
-          const ceilW = Math.ceil(halfWidth);
-          const floorW = Math.floor(halfWidth);
-
-          newRects.push(
-            {
-              x: targetRect.x,
-              y: targetRect.y,
-              width: ceilW,
-              height: targetRect.height,
-              color: getAverageColorFast(targetRect.x, targetRect.y, ceilW, targetRect.height, canvasWidth, canvasHeight),
-            },
-            {
-              x: targetRect.x + ceilW,
-              y: targetRect.y,
-              width: floorW,
-              height: targetRect.height,
-              color: getAverageColorFast(targetRect.x + ceilW, targetRect.y, floorW, targetRect.height, canvasWidth, canvasHeight),
-            }
-          );
-        } else {
-          const halfHeight = targetRect.height / 2;
-          const ceilH = Math.ceil(halfHeight);
-          const floorH = Math.floor(halfHeight);
-
-          newRects.push(
-            {
-              x: targetRect.x,
-              y: targetRect.y,
-              width: targetRect.width,
-              height: ceilH,
-              color: getAverageColorFast(targetRect.x, targetRect.y, targetRect.width, ceilH, canvasWidth, canvasHeight),
-            },
-            {
-              x: targetRect.x,
-              y: targetRect.y + ceilH,
-              width: targetRect.width,
-              height: floorH,
-              color: getAverageColorFast(targetRect.x, targetRect.y + ceilH, targetRect.width, floorH, canvasWidth, canvasHeight),
-            }
-          );
+        if (Math.hypot(deltaX, deltaY) < minSplitDistance) {
+          return;
         }
       }
-    }
 
-    rectanglesRef.current = newRects;
-    scheduleRender();
-  }, [isLoaded, canvasDimensions, minSplitDistance, splitRadius, splitMode, getAverageColorFast, scheduleRender]);
+      lastPosRef.current = { x, y };
+
+      const currentRects = rectanglesRef.current;
+      const targetRects =
+        splitRadius > 0
+          ? currentRects.filter((rect) => {
+              if (rect.width <= 0 || rect.height <= 0) {
+                return false;
+              }
+
+              return distanceToRectangle(x, y, rect) <= splitRadius;
+            })
+          : currentRects.filter(
+              (rect) =>
+                x >= rect.x &&
+                x <= rect.x + rect.width &&
+                y >= rect.y &&
+                y <= rect.y + rect.height
+            );
+
+      if (!targetRects.length) {
+        return;
+      }
+
+      const targetSet = new Set(targetRects);
+      const nextRects = currentRects.filter((rect) => !targetSet.has(rect));
+
+      for (const rect of targetRects) {
+        nextRects.push(...splitRectangle(rect, canvasDimensions.width, canvasDimensions.height));
+      }
+
+      rectanglesRef.current = nextRects;
+
+      if (!hasInteractedRef.current) {
+        hasInteractedRef.current = true;
+        onInteractionStart?.();
+      }
+
+      scheduleRender();
+    },
+    [
+      canvasDimensions.height,
+      canvasDimensions.width,
+      isLoaded,
+      minSplitDistance,
+      onInteractionStart,
+      scheduleRender,
+      splitRadius,
+      splitRectangle,
+    ]
+  );
+
+  const handlePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLCanvasElement>) => {
+      pointerDownRef.current = true;
+
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Pointer capture can fail on some browsers/input transitions.
+      }
+
+      revealAtPoint(event.clientX, event.clientY);
+    },
+    [revealAtPoint]
+  );
+
+  const handlePointerMove = useCallback(
+    (event: React.PointerEvent<HTMLCanvasElement>) => {
+      if (event.pointerType !== 'mouse' && !pointerDownRef.current) {
+        return;
+      }
+
+      revealAtPoint(event.clientX, event.clientY);
+    },
+    [revealAtPoint]
+  );
+
+  const handlePointerEnd = useCallback(() => {
+    pointerDownRef.current = false;
+    lastPosRef.current = null;
+  }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={canvasDimensions.width}
-      height={canvasDimensions.height}
+    <div
       className={className}
-      onMouseMove={handleMouseMove}
+      role="img"
+      aria-label="Benjamin Little headshot"
       style={{
+        position: 'relative',
         width: '100%',
-        height: '100%',
-        display: 'block',
-        cursor: 'crosshair',
+        aspectRatio: `${canvasDimensions.width} / ${canvasDimensions.height}`,
+        overflow: 'hidden',
         borderRadius: `${borderRadius}px`,
+        backgroundColor: '#080808',
       }}
-    />
+    >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage: `url("${imageSrc}")`,
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: 'cover',
+        }}
+      />
+      <canvas
+        ref={canvasRef}
+        width={canvasDimensions.width}
+        height={canvasDimensions.height}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
+        onPointerLeave={handlePointerEnd}
+        className="absolute inset-0 h-full w-full"
+        style={{
+          display: 'block',
+          cursor: 'crosshair',
+          touchAction: 'none',
+        }}
+      />
+    </div>
   );
 }
