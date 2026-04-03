@@ -669,9 +669,9 @@ export function Terminal({
         className,
       )}
     >
-      <div className="overflow-hidden rounded-lg border border-emerald-950 bg-[#03110a] shadow-[0_0_48px_rgba(16,185,129,0.12)]">
+      <div className="overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900 shadow-2xl">
         {/* Title Bar */}
-        <div className="flex items-center gap-2 border-b border-emerald-950 bg-[#071a10] px-4 py-3">
+        <div className="flex items-center gap-2 border-b border-neutral-800 bg-neutral-800 px-4 py-3">
           <div className="flex items-center gap-1.5">
             <div className="h-3 w-3 rounded-full bg-red-500 transition-colors hover:bg-red-600" />
             <div className="h-3 w-3 rounded-full bg-yellow-500 transition-colors hover:bg-yellow-600" />
@@ -712,7 +712,7 @@ export function Terminal({
                   <SyntaxHighlightedText text={line.content} />
                 </span>
               ) : line.type === "image" ? (
-                <div className="mt-2 w-full max-w-[14rem] overflow-hidden rounded-md border border-emerald-950 bg-black/40 p-2 md:max-w-[17rem]">
+                <div className="mt-2 w-full max-w-[14rem] overflow-hidden rounded-md border border-neutral-700 bg-black/40 p-2 md:max-w-[17rem]">
                   <Image
                     src={line.imageSrc!}
                     alt={line.imageAlt ?? "Terminal image output"}
@@ -732,7 +732,7 @@ export function Terminal({
                   target={line.external ? "_blank" : undefined}
                   rel={line.external ? "noopener noreferrer" : undefined}
                   className={cn(
-                    "inline-flex items-center gap-2 underline decoration-emerald-950 underline-offset-4 transition hover:text-emerald-50",
+                    "inline-flex items-center gap-2 underline decoration-neutral-700 underline-offset-4 transition hover:text-emerald-50",
                     outputColors[line.tone ?? "default"],
                   )}
                 >
@@ -814,7 +814,7 @@ export function Terminal({
         </div>
 
         {interactive && quickActions.length > 0 && (
-          <div className="border-t border-emerald-950 bg-[#07140d]/95 px-4 py-3">
+          <div className="border-t border-neutral-800 bg-neutral-900/95 px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="mr-2 text-emerald-300/45">quick:</span>
               {quickActions.map((action) => (
@@ -826,7 +826,7 @@ export function Terminal({
                     void typeAndRunInteractiveCommand(action.command);
                   }}
                   disabled={!canInteract || interactiveBusy}
-                  className="rounded-full border border-emerald-950 px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] text-emerald-200/65 transition hover:border-emerald-500/40 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-full border border-neutral-700 px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] text-emerald-200/65 transition hover:border-emerald-500/40 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {action.label}
                 </button>
