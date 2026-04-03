@@ -15,7 +15,7 @@ const syne = Syne({
 });
 
 export const metadata: Metadata = {
-  title: "Ben Little - Commerce & Computer Science Student | Portfolio",
+  title: "Ben Little",
   description:
     "Ben Little is a Commerce & Computer Science student at Queen's University. Explore his portfolio featuring projects in web development, software engineering, and business applications.",
   keywords: [
@@ -30,11 +30,11 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Ben Little" }],
   openGraph: {
-    title: "Ben Little - Commerce & Computer Science Student",
+    title: "Ben Little",
     description:
       "Commerce & Computer Science student at Queen's University passionate about AI, software development, and innovation.",
     url: "https://benlittleswebsite.netlify.app",
-    siteName: "Ben Little Portfolio",
+    siteName: "Ben Little",
     type: "website",
   },
 };
