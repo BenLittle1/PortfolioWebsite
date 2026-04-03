@@ -340,6 +340,30 @@ const outputColorStyles: Record<TerminalOutputTone, React.CSSProperties> = {
   warning: { color: "var(--terminal-text-warning, #d9f99d)" },
 };
 
+function renderTerminalText(text: string, textEffect?: "rainbow") {
+  const rainbowPattern = /(multicolour)/gi;
+
+  if (!rainbowPattern.test(text)) {
+    if (textEffect === "rainbow") {
+      return <span className="terminal-rainbow-text">{text}</span>;
+    }
+
+    return text;
+  }
+
+  const parts = text.split(rainbowPattern);
+
+  return parts.map((part, index) =>
+    part.toLowerCase() === "multicolour" ? (
+      <span key={`${part}-${index}`} className="terminal-rainbow-text">
+        {part}
+      </span>
+    ) : (
+      <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>
+    ),
+  );
+}
+
 function normalizeOutput(output: TerminalOutputLike): TerminalLine {
   if (typeof output === "string") {
     return { type: "output", content: output };
@@ -864,23 +888,11 @@ export function Terminal({
                       "var(--terminal-border, rgba(110, 231, 183, 0.18))",
                   }}
                 >
-                  <span
-                    className={cn(
-                      line.textEffect === "rainbow" && "terminal-rainbow-text",
-                    )}
-                  >
-                    {line.content}
-                  </span>
+                  <span>{renderTerminalText(line.content, line.textEffect)}</span>
                 </a>
               ) : (
                 <span style={outputColorStyles[line.tone ?? "default"]}>
-                  <span
-                    className={cn(
-                      line.textEffect === "rainbow" && "terminal-rainbow-text",
-                    )}
-                  >
-                    {line.content}
-                  </span>
+                  {renderTerminalText(line.content, line.textEffect)}
                 </span>
               )}
             </div>
