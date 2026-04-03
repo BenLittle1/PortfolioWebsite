@@ -287,6 +287,7 @@ export interface TerminalOutput {
   imageSrc?: string;
   imageAlt?: string;
   imageEffect?: "zoomies";
+  textEffect?: "rainbow";
 }
 
 export type TerminalOutputLike = string | TerminalOutput;
@@ -328,6 +329,7 @@ interface TerminalLine {
   imageSrc?: string;
   imageAlt?: string;
   imageEffect?: "zoomies";
+  textEffect?: "rainbow";
 }
 
 const outputColorStyles: Record<TerminalOutputTone, React.CSSProperties> = {
@@ -351,6 +353,7 @@ function normalizeOutput(output: TerminalOutputLike): TerminalLine {
       imageSrc: output.imageSrc,
       imageAlt: output.imageAlt,
       imageEffect: output.imageEffect,
+      textEffect: output.textEffect,
     };
   }
 
@@ -360,6 +363,7 @@ function normalizeOutput(output: TerminalOutputLike): TerminalLine {
     tone: output.tone,
     href: output.href,
     external: output.external,
+    textEffect: output.textEffect,
   };
 }
 
@@ -860,11 +864,23 @@ export function Terminal({
                       "var(--terminal-border, rgba(110, 231, 183, 0.18))",
                   }}
                 >
-                  {line.content}
+                  <span
+                    className={cn(
+                      line.textEffect === "rainbow" && "terminal-rainbow-text",
+                    )}
+                  >
+                    {line.content}
+                  </span>
                 </a>
               ) : (
                 <span style={outputColorStyles[line.tone ?? "default"]}>
-                  {line.content}
+                  <span
+                    className={cn(
+                      line.textEffect === "rainbow" && "terminal-rainbow-text",
+                    )}
+                  >
+                    {line.content}
+                  </span>
                 </span>
               )}
             </div>

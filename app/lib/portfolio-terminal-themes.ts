@@ -243,7 +243,7 @@ export const portfolioTerminalThemes: PortfolioTerminalTheme[] = [
   },
   {
     id: "multicolor",
-    label: "Multicolor",
+    label: "Multicolour",
     summary: "Mixed neon highlights.",
     accent: "#66d9ef",
     accentSoft: "#ff79c6",

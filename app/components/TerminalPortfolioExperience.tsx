@@ -62,7 +62,7 @@ type RemovalPlan = {
 };
 
 const themeCommandOptionsLabel = portfolioTerminalThemes
-  .map((theme) => theme.id)
+  .map((theme) => theme.label.toLowerCase())
   .join("|");
 
 function linkOutput(
@@ -367,8 +367,9 @@ function getThemeListingOutputs(
     { content: "available grades", tone: "accent" },
     ...portfolioTerminalThemes.map(
       (theme): TerminalOutputLike => ({
-        content: `${theme.id.padEnd(8, " ")} ${theme.summary}`,
+        content: `${theme.label.toLowerCase().padEnd(11, " ")} ${theme.summary}`,
         tone: theme.id === activeThemeId ? "success" : "default",
+        textEffect: theme.id === "multicolor" ? "rainbow" : undefined,
       }),
     ),
     {
@@ -386,7 +387,7 @@ function getThemeSelection(
     initialId: activeThemeId,
     options: portfolioTerminalThemes.map((themeOption) => ({
       id: themeOption.id,
-      label: themeOption.id,
+      label: themeOption.label.toLowerCase(),
       command: `theme ${themeOption.id}`,
       color: themeOption.accent,
       textEffect: themeOption.id === "multicolor" ? "rainbow" : undefined,
@@ -1018,6 +1019,7 @@ export default function TerminalPortfolioExperience({
             {
               content: `active grade :: ${theme.label.toLowerCase()}`,
               tone: "accent",
+              textEffect: theme.id === "multicolor" ? "rainbow" : undefined,
             },
             ...getThemeListingOutputs(theme.id),
           ],
@@ -1058,6 +1060,7 @@ export default function TerminalPortfolioExperience({
               {
                 content: `${nextTheme.label.toLowerCase()} already active`,
                 tone: "success",
+                textEffect: nextTheme.id === "multicolor" ? "rainbow" : undefined,
               },
             ],
           };
@@ -1070,6 +1073,7 @@ export default function TerminalPortfolioExperience({
             {
               content: `grade switched :: ${nextTheme.label.toLowerCase()}`,
               tone: "accent",
+              textEffect: nextTheme.id === "multicolor" ? "rainbow" : undefined,
             },
           ],
         };
