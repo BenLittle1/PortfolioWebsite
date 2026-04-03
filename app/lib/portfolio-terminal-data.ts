@@ -169,7 +169,7 @@ export const terminalQuickStarts: TerminalQuickStart[] = [
   },
   {
     label: "Show the dog",
-    command: "dog",
+    command: "cat dog.jpeg",
     description: "Render Ben's dog photo inline inside the terminal.",
   },
   {

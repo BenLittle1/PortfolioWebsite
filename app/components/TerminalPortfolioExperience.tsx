@@ -14,7 +14,6 @@ import {
   portfolioContactEmails,
   portfolioProfile,
   portfolioProjects,
-  terminalQuickStarts,
 } from "@/app/lib/portfolio-terminal-data";
 import {
   portfolioTerminalThemes,
@@ -856,27 +855,15 @@ const quickActions = [
     command: "howto",
     labelEffect: "shiny" as const,
   },
-  ...terminalQuickStarts.map((item) => ({
-    label:
-      item.command === "dog"
-        ? "dog"
-        : item.command === "cat headshot.jpg"
-        ? "photo"
-        : item.command === "clear"
-          ? "clear"
-        : item.command === "cat focus.md"
-        ? "focus"
-          : item.command === "cat projects.md"
-          ? "projects"
-          : item.command === "cat skills.md"
-            ? "skills"
-            : item.command === "cat contact.md"
-              ? "contact"
-              : item.command === "open resume"
-                ? "resume"
-                : "whoami",
-    command: item.command,
-  })),
+  { label: "whoami", command: "whoami" },
+  { label: "photo", command: "cat headshot.jpg" },
+  { label: "dog", command: "cat dog.jpeg" },
+  { label: "focus", command: "cat focus.md" },
+  { label: "projects", command: "cat projects.md" },
+  { label: "skills", command: "cat skills.md" },
+  { label: "contact", command: "cat contact.md" },
+  { label: "resume", command: "open resume" },
+  { label: "clear", command: "clear" },
   { label: "theme", command: "theme" },
 ];
 
