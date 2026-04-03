@@ -3,9 +3,9 @@ import TerminalPortfolioExperience from "@/app/components/TerminalPortfolioExper
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen w-full bg-black">
+    <div className="relative min-h-screen w-full bg-[#04150b]">
       <div className="fixed inset-0 z-0">
-        <PixelBlast />
+        <PixelBlast color="#5efc8d" transparent patternDensity={0.94} />
       </div>
       <div className="relative z-10">
         <TerminalPortfolioExperience solidBackground={false} />

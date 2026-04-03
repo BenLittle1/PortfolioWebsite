@@ -496,8 +496,8 @@ export default function TerminalPortfolioExperience({
         interactive
         onCommand={resolvePortfolioCommand}
         quickActions={quickActions}
-        className="max-w-6xl px-0 text-sm"
-        contentClassName="h-[36rem] md:h-[48rem]"
+        className="max-w-5xl px-0 text-sm"
+        contentClassName="h-[34rem] md:h-[44rem]"
       />
     </section>
   );
