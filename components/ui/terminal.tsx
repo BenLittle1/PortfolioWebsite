@@ -1,6 +1,7 @@
 "use client";
 import Image from "next/image";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import ShinyText from "@/components/ShinyText";
 import { cn } from "@/lib/utils";
 
 const KEY_SOUNDS_DOWN: Record<string, [number, number]> = {
@@ -245,16 +246,16 @@ export function tokenizeBash(text: string): Token[] {
   return tokens;
 }
 
-const tokenColors: Record<TokenType, string> = {
-  command: "text-emerald-300",
-  flag: "text-lime-300",
-  string: "text-green-100",
-  number: "text-emerald-200",
-  operator: "text-emerald-500",
-  path: "text-green-300",
-  variable: "text-lime-200",
-  comment: "text-emerald-900",
-  default: "text-emerald-50/80",
+const tokenColorStyles: Record<TokenType, React.CSSProperties> = {
+  command: { color: "var(--terminal-token-command, #6ee7b7)" },
+  flag: { color: "var(--terminal-token-flag, #bef264)" },
+  string: { color: "var(--terminal-token-string, #dcfce7)" },
+  number: { color: "var(--terminal-token-number, #a7f3d0)" },
+  operator: { color: "var(--terminal-token-operator, #34d399)" },
+  path: { color: "var(--terminal-token-path, #86efac)" },
+  variable: { color: "var(--terminal-token-variable, #d9f99d)" },
+  comment: { color: "var(--terminal-token-comment, rgba(22, 101, 52, 0.72))" },
+  default: { color: "var(--terminal-token-default, rgba(236, 253, 245, 0.82))" },
 };
 
 export function SyntaxHighlightedText({ text }: { text: string }) {
@@ -263,7 +264,7 @@ export function SyntaxHighlightedText({ text }: { text: string }) {
   return (
     <>
       {tokens.map((token, i) => (
-        <span key={i} className={tokenColors[token.type]}>
+        <span key={i} style={tokenColorStyles[token.type]}>
           {token.value}
         </span>
       ))}
@@ -290,14 +291,32 @@ export interface TerminalOutput {
 
 export type TerminalOutputLike = string | TerminalOutput;
 
+export interface TerminalSelectionOption {
+  id: string;
+  label: string;
+  description?: string;
+  command: string;
+  color?: string;
+  textEffect?: "rainbow";
+}
+
+export interface TerminalInteractiveSelection {
+  title?: string;
+  hint?: string;
+  initialId?: string;
+  options: TerminalSelectionOption[];
+}
+
 export interface TerminalCommandResult {
   outputs?: TerminalOutputLike[];
   clear?: boolean;
+  selection?: TerminalInteractiveSelection | null;
 }
 
 export interface TerminalQuickAction {
   label: string;
   command: string;
+  labelEffect?: "shiny";
 }
 
 interface TerminalLine {
@@ -311,12 +330,12 @@ interface TerminalLine {
   imageEffect?: "zoomies";
 }
 
-const outputColors: Record<TerminalOutputTone, string> = {
-  default: "text-emerald-100/70",
-  muted: "text-emerald-300/45",
-  accent: "text-lime-300",
-  success: "text-emerald-300",
-  warning: "text-green-200",
+const outputColorStyles: Record<TerminalOutputTone, React.CSSProperties> = {
+  default: { color: "var(--terminal-text-default, rgba(236, 253, 245, 0.78))" },
+  muted: { color: "var(--terminal-text-muted, rgba(110, 231, 183, 0.5))" },
+  accent: { color: "var(--terminal-text-accent, #bef264)" },
+  success: { color: "var(--terminal-text-success, #6ee7b7)" },
+  warning: { color: "var(--terminal-text-warning, #d9f99d)" },
 };
 
 function normalizeOutput(output: TerminalOutputLike): TerminalLine {
@@ -410,6 +429,9 @@ export function Terminal({
   const [history, setHistory] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAutoTyping, setIsAutoTyping] = useState(false);
+  const [activeSelection, setActiveSelection] =
+    useState<TerminalInteractiveSelection | null>(null);
+  const [activeSelectionIndex, setActiveSelectionIndex] = useState(0);
   const historyIndexRef = useRef<number | null>(null);
 
   const hasScriptedCommands = commands.length > 0;
@@ -533,7 +555,25 @@ export function Terminal({
     if (canInteract && !interactiveBusy) {
       inputRef.current?.focus();
     }
-  }, [canInteract, interactiveBusy]);
+  }, [canInteract, interactiveBusy, activeSelection]);
+
+  const openSelection = (selection: TerminalInteractiveSelection | null) => {
+    if (!selection || selection.options.length === 0) {
+      setActiveSelection(null);
+      setActiveSelectionIndex(0);
+      return;
+    }
+
+    const initialIndex = selection.initialId
+      ? Math.max(
+          0,
+          selection.options.findIndex((option) => option.id === selection.initialId),
+        )
+      : 0;
+
+    setActiveSelection(selection);
+    setActiveSelectionIndex(initialIndex);
+  };
 
   const executeInteractiveCommand = useMemo(
     () =>
@@ -546,6 +586,7 @@ export function Terminal({
 
         setIsSubmitting(true);
         setInputValue("");
+        setActiveSelection(null);
         historyIndexRef.current = null;
 
         setHistory((prev) =>
@@ -566,7 +607,10 @@ export function Terminal({
               setLines((prev) => [...prev, output]);
             }
           }
+
+          openSelection(result.selection ?? null);
         } catch {
+          setActiveSelection(null);
           setLines((prev) => [...prev, { type: "command", content: command }]);
           await wait(interactiveOutputLineDelay);
           setLines((prev) => [
@@ -617,11 +661,11 @@ export function Terminal({
   );
 
   const prompt = (
-    <span className="text-emerald-300/55">
-      <span className="text-emerald-300">{username}</span>
-      <span className="text-emerald-500">:</span>
-      <span className="text-lime-300">~</span>
-      <span className="text-emerald-200/70">$</span>{" "}
+    <span style={{ color: "var(--terminal-prompt-dim, rgba(110, 231, 183, 0.55))" }}>
+      <span style={{ color: "var(--terminal-prompt-user, #6ee7b7)" }}>{username}</span>
+      <span style={{ color: "var(--terminal-prompt-divider, #10b981)" }}>:</span>
+      <span style={{ color: "var(--terminal-prompt-path, #bef264)" }}>~</span>
+      <span style={{ color: "var(--terminal-prompt-symbol, rgba(167, 243, 208, 0.72))" }}>$</span>{" "}
     </span>
   );
 
@@ -632,6 +676,53 @@ export function Terminal({
   };
 
   const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (activeSelection && activeSelection.options.length > 0) {
+      const inputHasValue = inputValue.trim().length > 0;
+
+      if (
+        (event.key === "ArrowUp" || event.key === "ArrowLeft") &&
+        !inputHasValue
+      ) {
+        event.preventDefault();
+        setActiveSelectionIndex((currentIndex) =>
+          currentIndex === 0
+            ? activeSelection.options.length - 1
+            : currentIndex - 1,
+        );
+        return;
+      }
+
+      if (
+        (event.key === "ArrowDown" || event.key === "ArrowRight") &&
+        !inputHasValue
+      ) {
+        event.preventDefault();
+        setActiveSelectionIndex((currentIndex) =>
+          currentIndex === activeSelection.options.length - 1
+            ? 0
+            : currentIndex + 1,
+        );
+        return;
+      }
+
+      if (event.key === "Enter" && !inputHasValue) {
+        event.preventDefault();
+        const selectedOption = activeSelection.options[activeSelectionIndex];
+
+        if (selectedOption) {
+          void executeInteractiveCommand(selectedOption.command);
+        }
+
+        return;
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setActiveSelection(null);
+        return;
+      }
+    }
+
     if (event.key === "ArrowUp" && history.length > 0) {
       event.preventDefault();
       const currentIndex = historyIndexRef.current;
@@ -681,7 +772,13 @@ export function Terminal({
             <div className="h-3 w-3 rounded-full bg-green-500 transition-colors hover:bg-green-600" />
           </div>
           <div className="flex-1 text-center">
-            <span className="truncate text-xs text-emerald-200/55">
+            <span
+              className="truncate text-xs"
+              style={{
+                color:
+                  "var(--terminal-topbar-text, var(--terminal-text-muted, rgba(110, 231, 183, 0.5)))",
+              }}
+            >
               {username} — bash
             </span>
           </div>
@@ -692,7 +789,7 @@ export function Terminal({
         <div
           ref={contentRef}
           className={cn(
-            "no-visible-scrollbar h-80 overflow-y-auto p-4 font-mono",
+            "terminal-themed-scrollbar h-80 overflow-y-auto p-4 font-mono",
             contentClassName,
           )}
           onClick={() => {
@@ -737,7 +834,13 @@ export function Terminal({
                       className="block h-auto w-full rounded-sm object-cover"
                     />
                     {line.content ? (
-                      <span className="mt-2 block text-xs text-emerald-300/45">
+                      <span
+                        className="mt-2 block text-xs"
+                        style={{
+                          color:
+                            "var(--terminal-text-muted, rgba(110, 231, 183, 0.5))",
+                        }}
+                      >
                         {line.content}
                       </span>
                     ) : null}
@@ -749,14 +852,18 @@ export function Terminal({
                   target={line.external ? "_blank" : undefined}
                   rel={line.external ? "noopener noreferrer" : undefined}
                   className={cn(
-                    "inline-flex items-center gap-2 underline decoration-neutral-700 underline-offset-4 transition hover:text-emerald-50",
-                    outputColors[line.tone ?? "default"],
+                    "inline-flex items-center gap-2 underline underline-offset-4 transition",
                   )}
+                  style={{
+                    ...outputColorStyles[line.tone ?? "default"],
+                    textDecorationColor:
+                      "var(--terminal-border, rgba(110, 231, 183, 0.18))",
+                  }}
                 >
                   {line.content}
                 </a>
               ) : (
-                <span className={outputColors[line.tone ?? "default"]}>
+                <span style={outputColorStyles[line.tone ?? "default"]}>
                   {line.content}
                 </span>
               )}
@@ -767,7 +874,10 @@ export function Terminal({
             <div className="leading-relaxed whitespace-pre-wrap">
               {prompt}
               <SyntaxHighlightedText text={currentText} />
-              <span className="ml-0.5 inline-block h-4 w-2 bg-emerald-200 align-middle" />
+              <span
+                className="ml-0.5 inline-block h-4 w-2 align-middle"
+                style={{ backgroundColor: "var(--terminal-cursor, #bbf7d0)" }}
+              />
             </div>
           )}
 
@@ -779,12 +889,85 @@ export function Terminal({
               {prompt}
               <span
                 className={cn(
-                  "inline-block h-4 w-2 bg-emerald-200 align-middle transition-opacity duration-100",
+                  "inline-block h-4 w-2 align-middle transition-opacity duration-100",
                   !cursorVisible && "opacity-0",
                 )}
+                style={{ backgroundColor: "var(--terminal-cursor, #bbf7d0)" }}
               />
             </div>
           )}
+
+          {interactive &&
+            phase === "done" &&
+            activeSelection &&
+            activeSelection.options.length > 0 && (
+              <div>
+                {activeSelection.title ? (
+                  <div
+                    className="leading-relaxed whitespace-pre-wrap"
+                    style={{
+                      color:
+                        "var(--terminal-text-muted, rgba(110, 231, 183, 0.5))",
+                    }}
+                  >
+                    {activeSelection.title}
+                  </div>
+                ) : null}
+
+                {activeSelection.hint ? (
+                  <div
+                    className="leading-relaxed whitespace-pre-wrap"
+                    style={{
+                      color:
+                        "var(--terminal-text-muted, rgba(110, 231, 183, 0.5))",
+                    }}
+                  >
+                    {activeSelection.hint}
+                  </div>
+                ) : null}
+
+                {activeSelection.options.map((option, index) => {
+                  const isActive = index === activeSelectionIndex;
+                  const optionColor =
+                    option.color ??
+                    "var(--terminal-text-default, rgba(236, 253, 245, 0.78))";
+
+                  return (
+                    <div
+                      key={option.id}
+                      className="leading-relaxed whitespace-pre-wrap"
+                    >
+                      <span
+                        className="transition-opacity"
+                        style={{
+                          color:
+                            option.textEffect === "rainbow"
+                              ? "var(--terminal-text-strong, #ffffff)"
+                              : optionColor,
+                          opacity: isActive ? 1 : 0.72,
+                        }}
+                      >
+                        {`${isActive ? ">" : " "} `}
+                      </span>
+                      <span
+                        className={cn(
+                          "transition-opacity",
+                          option.textEffect === "rainbow" && "terminal-rainbow-text",
+                        )}
+                        style={{
+                          color:
+                            option.textEffect === "rainbow" ? undefined : optionColor,
+                          opacity: isActive ? 1 : 0.72,
+                          filter: isActive ? "brightness(1.12)" : "none",
+                        }}
+                      >
+                        {option.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
           {interactive && phase === "done" && !isSubmitting && (
             <form onSubmit={handleSubmit}>
@@ -812,16 +995,25 @@ export function Terminal({
                     spellCheck={false}
                     className="absolute inset-0 h-full w-full opacity-0"
                   />
-                  <div className="min-h-5 break-all text-emerald-50/80">
+                  <div
+                    className="min-h-5 break-all"
+                    style={{
+                      color:
+                        "var(--terminal-input-text, rgba(236, 253, 245, 0.82))",
+                    }}
+                  >
                     {inputValue ? <SyntaxHighlightedText text={inputValue} /> : null}
                     <span
                       className={cn(
                         "ml-0.5 inline-block h-4 w-2 align-middle transition-opacity duration-100",
-                        canInteract && !interactiveBusy
-                          ? "bg-emerald-200"
-                          : "bg-emerald-400/40",
                         !cursorVisible && "opacity-0",
                       )}
+                      style={{
+                        backgroundColor:
+                          canInteract && !interactiveBusy
+                            ? "var(--terminal-cursor, #bbf7d0)"
+                            : "var(--terminal-cursor-disabled, rgba(74, 222, 128, 0.38))",
+                      }}
                     />
                   </div>
                 </div>
@@ -833,7 +1025,14 @@ export function Terminal({
         {interactive && quickActions.length > 0 && (
           <div className="border-t border-neutral-800 bg-neutral-900/95 px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="mr-2 text-emerald-300/45">quick:</span>
+              <span
+                className="mr-2"
+                style={{
+                  color: "var(--terminal-quick-label, rgba(110, 231, 183, 0.45))",
+                }}
+              >
+                quick:
+              </span>
               {quickActions.map((action) => (
                 <button
                   key={action.command}
@@ -843,9 +1042,28 @@ export function Terminal({
                     void typeAndRunInteractiveCommand(action.command);
                   }}
                   disabled={!canInteract || interactiveBusy}
-                  className="rounded-full border border-neutral-700 px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] text-emerald-200/65 transition hover:border-emerald-500/40 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] transition hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  style={{
+                    borderColor:
+                      "var(--terminal-quick-button-border, rgba(110, 231, 183, 0.2))",
+                    color:
+                      "var(--terminal-quick-button-text, rgba(209, 250, 229, 0.72))",
+                    backgroundColor:
+                      "var(--terminal-quick-button-bg, rgba(0, 0, 0, 0.12))",
+                  }}
                 >
-                  {action.label}
+                  {action.labelEffect === "shiny" ? (
+                    <ShinyText
+                      text={action.label}
+                      speed={2.4}
+                      color="var(--terminal-quick-button-text, rgba(209, 250, 229, 0.72))"
+                      shineColor="var(--terminal-text-strong, #ffffff)"
+                      spread={32}
+                      className="inline-block"
+                    />
+                  ) : (
+                    action.label
+                  )}
                 </button>
               ))}
             </div>

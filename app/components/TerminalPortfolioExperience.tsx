@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Terminal,
+  type TerminalInteractiveSelection,
   type TerminalCommandResult,
   type TerminalOutputLike,
 } from "@/components/ui/terminal";
@@ -15,6 +16,12 @@ import {
   portfolioProjects,
   terminalQuickStarts,
 } from "@/app/lib/portfolio-terminal-data";
+import {
+  portfolioTerminalThemes,
+  resolvePortfolioTerminalTheme,
+  type PortfolioTerminalTheme,
+  type PortfolioTerminalThemeId,
+} from "@/app/lib/portfolio-terminal-themes";
 
 const SESSION_DELETED_FILES_KEY = "portfolio-terminal-deleted-files";
 const SESSION_DELETE_NOTICE_KEY = "portfolio-terminal-delete-notice-seen";
@@ -53,6 +60,10 @@ type RemovalPlan = {
   removed: VirtualFileName[];
   missing: string[];
 };
+
+const themeCommandOptionsLabel = portfolioTerminalThemes
+  .map((theme) => theme.id)
+  .join("|");
 
 function linkOutput(
   content: string,
@@ -349,11 +360,56 @@ function getDeleteNoticeOutput(file: VirtualFileName): TerminalOutputLike {
   };
 }
 
+function getThemeListingOutputs(
+  activeThemeId: PortfolioTerminalThemeId,
+): TerminalOutputLike[] {
+  return [
+    { content: "available grades", tone: "accent" },
+    ...portfolioTerminalThemes.map(
+      (theme): TerminalOutputLike => ({
+        content: `${theme.id.padEnd(8, " ")} ${theme.summary}`,
+        tone: theme.id === activeThemeId ? "success" : "default",
+      }),
+    ),
+    {
+      content: `Run \`theme\` to browse or \`theme <${themeCommandOptionsLabel}>\` to switch directly.`,
+      tone: "muted",
+    },
+  ];
+}
+
+function getThemeSelection(
+  activeThemeId: PortfolioTerminalThemeId,
+): TerminalInteractiveSelection {
+  return {
+    title: "",
+    initialId: activeThemeId,
+    options: portfolioTerminalThemes.map((themeOption) => ({
+      id: themeOption.id,
+      label: themeOption.id,
+      command: `theme ${themeOption.id}`,
+      color: themeOption.accent,
+      textEffect: themeOption.id === "multicolor" ? "rainbow" : undefined,
+    })),
+  };
+}
+
 function inferPortfolioCommand(rawCommand: string) {
   const simplified = simplifyNaturalLanguage(rawCommand);
 
   if (!simplified) {
     return null;
+  }
+
+  if (
+    simplified.includes("how to use") ||
+    simplified.includes("how do i use") ||
+    simplified.includes("how this works") ||
+    simplified.includes("how does this work") ||
+    simplified.includes("how do i use this terminal") ||
+    simplified.includes("how to use this terminal")
+  ) {
+    return "howto";
   }
 
   if (
@@ -465,6 +521,23 @@ function inferPortfolioCommand(rawCommand: string) {
     return "open linkedin";
   }
 
+  if (
+    simplified.includes("theme") ||
+    simplified.includes("colour") ||
+    simplified.includes("color") ||
+    simplified.includes("grade")
+  ) {
+    for (const token of simplified.split(" ")) {
+      const resolvedTheme = resolvePortfolioTerminalTheme(token);
+
+      if (resolvedTheme) {
+        return `theme ${resolvedTheme.id}`;
+      }
+    }
+
+    return "theme";
+  }
+
   return null;
 }
 
@@ -489,10 +562,13 @@ function getPortfolioCommandResult(
     return {
       outputs: [
         { content: "Available commands", tone: "accent" },
-        { content: "whoami / ls / cat about.md / cat focus.md / cat projects.md" },
+        { content: "howto / whoami / ls / cat about.md / cat focus.md / cat projects.md" },
         { content: "project stensyl / project spotifygraphs / project hapticmaps" },
         { content: "cat skills.md / cat interests.md / cat contact.md / cat headshot.jpg / dog / dog --zoomies" },
-        { content: "open resume / open github / open linkedin / rm <file> / restore all / clear" },
+        {
+          content: `theme / theme <${themeCommandOptionsLabel}> / open resume / open github / open linkedin`,
+        },
+        { content: "rm <file> / restore all / clear" },
         {
           content: "Use the quick actions below or type your own command.",
           tone: "muted",
@@ -503,6 +579,47 @@ function getPortfolioCommandResult(
         },
         {
           content: "Yes, you can fake-delete files. No, I don't approve of it.",
+          tone: "muted",
+        },
+      ],
+    };
+  }
+
+  if (
+    normalized === "howto" ||
+    normalized === "how to" ||
+    normalized === "tutorial" ||
+    normalized === "terminal help"
+  ) {
+    return {
+      outputs: [
+        { content: "terminal crash course", tone: "accent" },
+        {
+          content: "Prompt format :: `bl@portfolio:~$` means user @ machine, current folder, then the command cursor.",
+          tone: "default",
+        },
+        {
+          content: "`ls` lists files, `cat <file>` reads a file, `project <name>` opens a project card, and `open <target>` launches a link.",
+          tone: "default",
+        },
+        {
+          content: "Best first moves :: `whoami`, `cat about.md`, `cat projects.md`, `cat contact.md`, `dog`.",
+          tone: "success",
+        },
+        {
+          content: "Shortcuts work too :: plain English like `show me your projects` gets interpreted for you.",
+          tone: "default",
+        },
+        {
+          content: "Navigation :: use ↑ and ↓ for command history. Inside `theme`, arrows move the selector and Enter applies it.",
+          tone: "default",
+        },
+        {
+          content: "Utility commands :: `theme`, `help`, `clear`, `rm <file>`, and `restore all`.",
+          tone: "default",
+        },
+        {
+          content: "Rule of thumb :: commands are usually verb + target. Example: `cat focus.md` or `project stensyl`.",
           tone: "muted",
         },
       ],
@@ -688,6 +805,14 @@ function getPortfolioCommandResult(
           isZoomies ? "dog.jpeg // zoomies mode" : "dog.jpeg",
           isZoomies ? "zoomies" : undefined,
         ),
+        ...(!isZoomies
+          ? ([
+              {
+                content: "try `dog --zoomies`",
+                tone: "muted",
+              },
+            ] satisfies TerminalOutputLike[])
+          : []),
       ],
     };
   }
@@ -724,48 +849,63 @@ function getPortfolioCommandResult(
 
 const introCommands = ["whoami", "cat about.md", "ls"];
 
-const quickActions = terminalQuickStarts.map((item) => ({
-  label:
-    item.command === "dog"
-      ? "dog"
-      : item.command === "cat headshot.jpg"
-      ? "photo"
-      : item.command === "clear"
-        ? "clear"
-      : item.command === "cat focus.md"
-      ? "focus"
-      : item.command === "cat projects.md"
-        ? "projects"
-        : item.command === "cat skills.md"
-          ? "skills"
-          : item.command === "cat contact.md"
-            ? "contact"
-            : item.command === "open resume"
-              ? "resume"
-              : "whoami",
-  command: item.command,
-}));
+const quickActions = [
+  {
+    label: "HOWTO",
+    command: "howto",
+    labelEffect: "shiny" as const,
+  },
+  ...terminalQuickStarts.map((item) => ({
+    label:
+      item.command === "dog"
+        ? "dog"
+        : item.command === "cat headshot.jpg"
+        ? "photo"
+        : item.command === "clear"
+          ? "clear"
+        : item.command === "cat focus.md"
+        ? "focus"
+          : item.command === "cat projects.md"
+          ? "projects"
+          : item.command === "cat skills.md"
+            ? "skills"
+            : item.command === "cat contact.md"
+              ? "contact"
+              : item.command === "open resume"
+                ? "resume"
+                : "whoami",
+    command: item.command,
+  })),
+  { label: "theme", command: "theme" },
+];
 
 interface TerminalPortfolioExperienceProps {
   embedded?: boolean;
   solidBackground?: boolean;
+  theme: PortfolioTerminalTheme;
+  onThemeChange: (themeId: PortfolioTerminalThemeId) => void;
 }
 
 export default function TerminalPortfolioExperience({
   embedded = false,
   solidBackground = true,
+  theme,
+  onThemeChange,
 }: TerminalPortfolioExperienceProps) {
-  const [deletedFiles, setDeletedFiles] = useState<VirtualFileName[]>(() =>
-    readDeletedFilesFromSession(),
-  );
-  const [deleteNoticeSeen, setDeleteNoticeSeen] = useState(() =>
-    readDeleteNoticeSeenFromSession(),
-  );
+  const [deletedFiles, setDeletedFiles] = useState<VirtualFileName[]>([]);
+  const [deleteNoticeSeen, setDeleteNoticeSeen] = useState(false);
+  const [sessionStateReady, setSessionStateReady] = useState(false);
 
   const deletedFileSet = useMemo(() => new Set(deletedFiles), [deletedFiles]);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
+    setDeletedFiles(readDeletedFilesFromSession());
+    setDeleteNoticeSeen(readDeleteNoticeSeenFromSession());
+    setSessionStateReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!sessionStateReady || typeof window === "undefined") {
       return;
     }
 
@@ -773,10 +913,10 @@ export default function TerminalPortfolioExperience({
       SESSION_DELETED_FILES_KEY,
       JSON.stringify(deletedFiles),
     );
-  }, [deletedFiles]);
+  }, [deletedFiles, sessionStateReady]);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (!sessionStateReady || typeof window === "undefined") {
       return;
     }
 
@@ -786,7 +926,7 @@ export default function TerminalPortfolioExperience({
     }
 
     window.sessionStorage.removeItem(SESSION_DELETE_NOTICE_KEY);
-  }, [deleteNoticeSeen]);
+  }, [deleteNoticeSeen, sessionStateReady]);
 
   const introOutputs = useMemo(
     () =>
@@ -867,6 +1007,74 @@ export default function TerminalPortfolioExperience({
         };
       }
 
+      if (
+        normalized === "theme list" ||
+        normalized === "theme ls" ||
+        normalized === "palette list" ||
+        normalized === "palette ls"
+      ) {
+        return {
+          outputs: [
+            {
+              content: `active grade :: ${theme.label.toLowerCase()}`,
+              tone: "accent",
+            },
+            ...getThemeListingOutputs(theme.id),
+          ],
+        };
+      }
+
+      if (normalized === "theme" || normalized === "palette") {
+        return {
+          outputs: [],
+          selection: getThemeSelection(theme.id),
+        };
+      }
+
+      if (
+        normalized.startsWith("theme ") ||
+        normalized.startsWith("palette ")
+      ) {
+        const requestedTheme = normalizeCommand(
+          rawCommand.replace(/^(theme|palette)\s+/i, ""),
+        );
+        const nextTheme = resolvePortfolioTerminalTheme(requestedTheme);
+
+        if (!nextTheme) {
+          return {
+            outputs: [
+              {
+                content: `Unknown grade: ${requestedTheme}`,
+                tone: "warning",
+              },
+            ],
+            selection: getThemeSelection(theme.id),
+          };
+        }
+
+        if (nextTheme.id === theme.id) {
+          return {
+            outputs: [
+              {
+                content: `${nextTheme.label.toLowerCase()} already active`,
+                tone: "success",
+              },
+            ],
+          };
+        }
+
+        onThemeChange(nextTheme.id);
+
+        return {
+          outputs: [
+            {
+              content: `grade switched :: ${nextTheme.label.toLowerCase()}`,
+              tone: "accent",
+            },
+          ],
+        };
+      }
+
       const directResult = getPortfolioCommandResult(rawCommand, deletedFileSet);
 
       if (directResult) {
@@ -908,11 +1116,11 @@ export default function TerminalPortfolioExperience({
         ],
       };
     },
-    [deletedFileSet, deleteNoticeSeen, deletedFiles],
+    [deletedFileSet, deleteNoticeSeen, deletedFiles, onThemeChange, theme.id, theme.label],
   );
 
   const terminalInterface = (
-    <div className="relative w-full">
+    <div className="relative w-full" style={theme.terminalVars}>
       <Terminal
         commands={introCommands}
         outputs={introOutputs}

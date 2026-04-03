@@ -78,7 +78,57 @@
   }
 }
 
+@keyframes terminal-rainbow-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
 @layer components {
+  .terminal-themed-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--terminal-scrollbar-thumb) var(--terminal-scrollbar-track);
+  }
+
+  .terminal-themed-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .terminal-themed-scrollbar::-webkit-scrollbar-track {
+    background: var(--terminal-scrollbar-track);
+  }
+
+  .terminal-themed-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--terminal-scrollbar-thumb);
+    border-radius: 999px;
+  }
+
+  .terminal-themed-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--terminal-scrollbar-thumb-hover);
+  }
+
+  .terminal-rainbow-text {
+    background-image: linear-gradient(
+      90deg,
+      #ff5f6d 0%,
+      #ffb86c 16%,
+      #ffd866 32%,
+      #50fa7b 48%,
+      #78dce8 64%,
+      #82aaff 80%,
+      #ff79c6 100%
+    );
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: terminal-rainbow-flow 2.4s linear infinite;
+  }
+
   .terminal-zoomies-card {
     --terminal-zoomies-width: min(16rem, calc(100% - 0.25rem));
     position: relative;

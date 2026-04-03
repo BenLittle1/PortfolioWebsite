@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import TerminalPortfolioExperience from "@/app/components/TerminalPortfolioExperience";
+import TerminalPortfolioShell from "@/app/components/TerminalPortfolioShell";
 
 export const metadata: Metadata = {
   title: "Terminal Mode | Ben Little",
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function TerminalPage() {
-  return <TerminalPortfolioExperience />;
+  return <TerminalPortfolioShell showPixelBlast={false} />;
 }
