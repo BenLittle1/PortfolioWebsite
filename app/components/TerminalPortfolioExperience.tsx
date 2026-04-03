@@ -58,6 +58,13 @@ function inferPortfolioCommand(rawCommand: string) {
   }
 
   if (
+    simplified.includes("dog") ||
+    simplified.includes("puppy")
+  ) {
+    return "dog";
+  }
+
+  if (
     simplified.includes("headshot") ||
     simplified.includes("photo") ||
     simplified.includes("picture") ||
@@ -182,7 +189,7 @@ function getPortfolioCommandResult(command: string): TerminalCommandResult | nul
         { content: "Available commands", tone: "accent" },
         { content: "whoami / ls / cat about.md / cat focus.md / cat projects.md" },
         { content: "project stensyl / project spotifygraphs / project hapticmaps" },
-        { content: "cat skills.md / cat interests.md / cat contact.md / cat headshot.jpg" },
+        { content: "cat skills.md / cat interests.md / cat contact.md / cat headshot.jpg / dog" },
         { content: "open resume / open github / open linkedin / clear" },
         {
           content: "Use the quick actions below or type your own command.",
@@ -202,6 +209,7 @@ function getPortfolioCommandResult(command: string): TerminalCommandResult | nul
         { content: "about.md      focus.md      skills.md", tone: "accent" },
         { content: "contact.md    interests.md  projects.md", tone: "accent" },
         { content: "headshot.jpg", tone: "accent" },
+        { content: "dog.jpeg", tone: "accent" },
         { content: "resume.pdf", tone: "accent" },
       ],
     };
@@ -345,6 +353,25 @@ function getPortfolioCommandResult(command: string): TerminalCommandResult | nul
     };
   }
 
+  if (
+    normalized === "dog" ||
+    normalized === "show dog" ||
+    normalized === "cat dog.jpeg" ||
+    normalized === "cat dog.jpg" ||
+    normalized === "puppy"
+  ) {
+    return {
+      outputs: [
+        { content: "dog preview", tone: "accent" },
+        imageOutput(
+          portfolioProfile.dogPhoto,
+          `${portfolioProfile.name} dog`,
+          "dog.jpeg",
+        ),
+      ],
+    };
+  }
+
   if (normalized === "open resume" || normalized === "resume" || normalized === "cat resume.pdf") {
     return {
       outputs: [
@@ -429,7 +456,9 @@ const introOutputs = Object.fromEntries(
 
 const quickActions = terminalQuickStarts.map((item) => ({
   label:
-    item.command === "cat headshot.jpg"
+    item.command === "dog"
+      ? "dog"
+      : item.command === "cat headshot.jpg"
       ? "photo"
       : item.command === "clear"
         ? "clear"

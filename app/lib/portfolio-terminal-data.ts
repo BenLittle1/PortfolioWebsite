@@ -32,6 +32,7 @@ export const portfolioProfile = {
   linkedin: "https://www.linkedin.com/in/benjamin-little1",
   resume: "/assets/Resume - Benjamin Little.pdf",
   headshot: "/assets/headshot.jpeg",
+  dogPhoto: "/assets/dog.jpeg",
   summary:
     "I build at the intersection of AI, product, finance, and venture creation. I like turning messy ideas into clear products that people can actually use.",
   longerBio: [
@@ -144,6 +145,11 @@ export const terminalQuickStarts: TerminalQuickStart[] = [
     label: "Show the headshot",
     command: "cat headshot.jpg",
     description: "Render Ben's headshot inline inside the terminal.",
+  },
+  {
+    label: "Show the dog",
+    command: "dog",
+    description: "Render Ben's dog photo inline inside the terminal.",
   },
   {
     label: "What is he up to?",
