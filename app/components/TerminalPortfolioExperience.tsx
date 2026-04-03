@@ -9,6 +9,7 @@ import {
   coreSkills,
   currentFocus,
   interests,
+  portfolioContactEmails,
   portfolioProfile,
   portfolioProjects,
   terminalQuickStarts,
@@ -328,7 +329,9 @@ function getPortfolioCommandResult(command: string): TerminalCommandResult | nul
   if (normalized === "contact" || normalized === "cat contact.md") {
     return {
       outputs: [
-        linkOutput(`email      ${portfolioProfile.email}`, `mailto:${portfolioProfile.email}`),
+        ...portfolioContactEmails.map(({ label, address }) =>
+          linkOutput(`${label.padEnd(10, " ")} ${address}`, `mailto:${address}`),
+        ),
         linkOutput(`github     ${portfolioProfile.github}`, portfolioProfile.github, true),
         linkOutput(`linkedin   ${portfolioProfile.linkedin}`, portfolioProfile.linkedin, true),
         linkOutput(`resume     ${portfolioProfile.resume}`, portfolioProfile.resume, true),

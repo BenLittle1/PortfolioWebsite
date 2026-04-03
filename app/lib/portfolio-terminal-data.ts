@@ -21,6 +21,26 @@ export type TerminalQuickStart = {
   description: string;
 };
 
+export type PortfolioContactEmail = {
+  label: string;
+  address: string;
+};
+
+export const portfolioContactEmails: PortfolioContactEmail[] = [
+  {
+    label: "school",
+    address: "ben.little@queensu.ca",
+  },
+  {
+    label: "personal",
+    address: "benlittle.dev@gmail.com",
+  },
+  {
+    label: "work",
+    address: "benjamin.little@axl.vc",
+  },
+];
+
 export const portfolioProfile = {
   name: "Benjamin Little",
   shortName: "BL",
@@ -28,6 +48,7 @@ export const portfolioProfile = {
   school: "Queen's University",
   location: "Kingston, Ontario",
   email: "ben.little@queensu.ca",
+  emails: portfolioContactEmails,
   github: "https://github.com/BenLittle1",
   linkedin: "https://www.linkedin.com/in/benjamin-little1",
   resume: "/assets/Resume - Benjamin Little.pdf",
@@ -169,7 +190,7 @@ export const terminalQuickStarts: TerminalQuickStart[] = [
   {
     label: "How do I reach him?",
     command: "cat contact.md",
-    description: "Email, LinkedIn, GitHub, and the resume link in one place.",
+    description: "School, personal, and work email plus LinkedIn, GitHub, and the resume link.",
   },
   {
     label: "Open the resume",

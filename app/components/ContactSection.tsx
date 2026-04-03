@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { FiLinkedin, FiGithub, FiMail, FiArrowUpRight } from 'react-icons/fi';
+import { portfolioContactEmails } from '@/app/lib/portfolio-terminal-data';
 
 const socialLinks = [
   {
@@ -16,18 +17,12 @@ const socialLinks = [
     icon: FiGithub,
     handle: 'BenLittle1',
   },
-  {
-    name: 'Email',
-    href: 'mailto:ben.little@queensu.ca',
-    icon: FiMail,
-    handle: 'ben.little@queensu.ca',
-  },
 ];
 
 export default function ContactSection() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
-  const [copiedEmail, setCopiedEmail] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -46,14 +41,14 @@ export default function ContactSection() {
     return () => observer.disconnect();
   }, []);
 
-  const handleCopyEmail = async () => {
+  const handleCopyEmail = async (address: string) => {
     try {
-      await navigator.clipboard.writeText('ben.little@queensu.ca');
-      setCopiedEmail(true);
-      setTimeout(() => setCopiedEmail(false), 2000);
+      await navigator.clipboard.writeText(address);
+      setCopiedEmail(address);
+      setTimeout(() => setCopiedEmail(null), 2000);
     } catch {
       // Fallback for older browsers
-      window.location.href = 'mailto:ben.little@queensu.ca';
+      window.location.href = `mailto:${address}`;
     }
   };
 
@@ -79,22 +74,36 @@ export default function ContactSection() {
           className={`mb-16 ${isVisible ? 'animate-fade-in-up' : 'opacity-0'}`}
           style={{ animationDelay: '150ms' }}
         >
-          <button
-            onClick={handleCopyEmail}
-            className="group relative inline-flex items-center gap-3 px-8 py-4 bg-lavender/10 border border-lavender/30 rounded-full text-lavender hover:bg-lavender/20 hover:border-lavender/50 transition-all"
-          >
-            <FiMail size={20} />
-            <span className="font-mono text-lg">ben.little@queensu.ca</span>
-            <FiArrowUpRight
-              size={18}
-              className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all"
-            />
-            {copiedEmail && (
-              <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1 bg-lavender text-black text-xs font-mono rounded">
-                Copied!
-              </span>
-            )}
-          </button>
+          <div className="grid max-w-4xl gap-4 mx-auto md:grid-cols-3">
+            {portfolioContactEmails.map((email) => (
+              <button
+                key={email.address}
+                onClick={() => handleCopyEmail(email.address)}
+                className="group relative flex flex-col items-start gap-4 rounded-3xl border border-lavender/20 bg-lavender/10 px-6 py-5 text-left text-lavender transition-all hover:border-lavender/50 hover:bg-lavender/20"
+              >
+                <div className="flex w-full items-center justify-between gap-4">
+                  <span className="font-mono text-xs uppercase tracking-[0.3em] text-lavender/70">
+                    {email.label}
+                  </span>
+                  <FiArrowUpRight
+                    size={18}
+                    className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all"
+                  />
+                </div>
+                <div className="flex items-start gap-3">
+                  <FiMail size={18} className="mt-0.5 shrink-0" />
+                  <span className="font-mono text-sm md:text-base break-all">
+                    {email.address}
+                  </span>
+                </div>
+                {copiedEmail === email.address && (
+                  <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1 bg-lavender text-black text-xs font-mono rounded">
+                    Copied!
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Social Links */}
