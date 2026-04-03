@@ -3,7 +3,7 @@ import TerminalPortfolioExperience from "@/app/components/TerminalPortfolioExper
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen w-full bg-black">
+    <div className="relative h-screen w-full overflow-hidden bg-black">
       <div className="fixed inset-0 z-0">
         <PixelBlast
           color="#5efc8d"

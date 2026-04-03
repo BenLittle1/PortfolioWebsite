@@ -5,6 +5,17 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    scrollbar-color: #6ee7b7 #0a0a0a;
+    scrollbar-width: thin;
+  }
+
+  body {
+    min-height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
   }
 
   ::selection {
@@ -21,12 +32,12 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #B19EEF;
+    background: #6ee7b7;
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #8B7AC7;
+    background: #a7f3d0;
   }
 }
 

@@ -510,7 +510,7 @@ export default function TerminalPortfolioExperience({
 
   return (
     <section
-      className={`flex min-h-screen items-center justify-center px-3 py-4 md:px-6 md:py-6 ${
+      className={`flex h-screen overflow-hidden items-center justify-center px-3 py-4 md:px-6 md:py-6 ${
         solidBackground ? "bg-black" : "bg-transparent"
       }`}
     >
