@@ -170,4 +170,9 @@ export const terminalQuickStarts: TerminalQuickStart[] = [
     command: "open resume",
     description: "Surface the PDF path and make the next click obvious.",
   },
+  {
+    label: "Clear the terminal",
+    command: "clear",
+    description: "Reset the terminal output and start fresh.",
+  },
 ];

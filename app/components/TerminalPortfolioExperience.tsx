@@ -431,6 +431,8 @@ const quickActions = terminalQuickStarts.map((item) => ({
   label:
     item.command === "cat headshot.jpg"
       ? "photo"
+      : item.command === "clear"
+        ? "clear"
       : item.command === "cat focus.md"
       ? "focus"
       : item.command === "cat projects.md"
