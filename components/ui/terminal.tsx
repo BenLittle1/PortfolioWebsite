@@ -285,6 +285,7 @@ export interface TerminalOutput {
   external?: boolean;
   imageSrc?: string;
   imageAlt?: string;
+  imageEffect?: "zoomies";
 }
 
 export type TerminalOutputLike = string | TerminalOutput;
@@ -307,6 +308,7 @@ interface TerminalLine {
   external?: boolean;
   imageSrc?: string;
   imageAlt?: string;
+  imageEffect?: "zoomies";
 }
 
 const outputColors: Record<TerminalOutputTone, string> = {
@@ -329,6 +331,7 @@ function normalizeOutput(output: TerminalOutputLike): TerminalLine {
       tone: output.tone,
       imageSrc: output.imageSrc,
       imageAlt: output.imageAlt,
+      imageEffect: output.imageEffect,
     };
   }
 
@@ -712,19 +715,33 @@ export function Terminal({
                   <SyntaxHighlightedText text={line.content} />
                 </span>
               ) : line.type === "image" ? (
-                <div className="mt-2 w-full max-w-[14rem] overflow-hidden rounded-md border border-neutral-700 bg-black/40 p-2 md:max-w-[17rem]">
-                  <Image
-                    src={line.imageSrc!}
-                    alt={line.imageAlt ?? "Terminal image output"}
-                    width={896}
-                    height={1152}
-                    className="block h-auto w-full rounded-sm object-cover"
-                  />
-                  {line.content ? (
-                    <span className="mt-2 block text-xs text-emerald-300/45">
-                      {line.content}
-                    </span>
-                  ) : null}
+                <div
+                  className={cn(
+                    "mt-2 w-full overflow-hidden",
+                    line.imageEffect === "zoomies" && "py-2",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "overflow-hidden rounded-md border border-neutral-700 bg-black/40 p-2",
+                      line.imageEffect === "zoomies"
+                        ? "terminal-zoomies-card terminal-zoomies-motion will-change-[left,transform]"
+                        : "w-full max-w-[14rem] md:max-w-[17rem]",
+                    )}
+                  >
+                    <Image
+                      src={line.imageSrc!}
+                      alt={line.imageAlt ?? "Terminal image output"}
+                      width={896}
+                      height={1152}
+                      className="block h-auto w-full rounded-sm object-cover"
+                    />
+                    {line.content ? (
+                      <span className="mt-2 block text-xs text-emerald-300/45">
+                        {line.content}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               ) : line.href ? (
                 <a

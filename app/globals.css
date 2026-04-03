@@ -41,7 +41,56 @@
   }
 }
 
+@keyframes terminal-zoomies-bounce {
+  0% {
+    left: 0;
+    transform: translateY(0) rotate(-1.1deg);
+  }
+
+  10% {
+    left: calc(100% - var(--terminal-zoomies-width));
+    transform: translateY(-2px) rotate(1.8deg);
+  }
+
+  20% {
+    left: 0;
+    transform: translateY(0) rotate(-1deg);
+  }
+
+  38% {
+    left: calc(100% - var(--terminal-zoomies-width));
+    transform: translateY(-1.5px) rotate(1.35deg);
+  }
+
+  56% {
+    left: 0;
+    transform: translateY(0) rotate(-0.8deg);
+  }
+
+  78% {
+    left: calc(100% - var(--terminal-zoomies-width));
+    transform: translateY(-1px) rotate(1deg);
+  }
+
+  100% {
+    left: 0;
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
 @layer components {
+  .terminal-zoomies-card {
+    --terminal-zoomies-width: min(16rem, calc(100% - 0.25rem));
+    position: relative;
+    left: 0;
+    width: var(--terminal-zoomies-width);
+  }
+
+  .terminal-zoomies-motion {
+    animation: terminal-zoomies-bounce 3.8s cubic-bezier(0.22, 0.78, 0.18, 1)
+      1 forwards;
+  }
+
   .section-container {
     @apply max-w-7xl mx-auto px-6 md:px-12 lg:px-20;
   }
