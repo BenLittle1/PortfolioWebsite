@@ -246,15 +246,15 @@ export function tokenizeBash(text: string): Token[] {
 }
 
 const tokenColors: Record<TokenType, string> = {
-  command: "text-emerald-400",
-  flag: "text-sky-400",
-  string: "text-amber-300",
-  number: "text-purple-400",
-  operator: "text-red-400",
-  path: "text-cyan-300",
-  variable: "text-pink-400",
-  comment: "text-neutral-500",
-  default: "text-neutral-300",
+  command: "text-emerald-300",
+  flag: "text-lime-300",
+  string: "text-green-100",
+  number: "text-emerald-200",
+  operator: "text-emerald-500",
+  path: "text-green-300",
+  variable: "text-lime-200",
+  comment: "text-emerald-900",
+  default: "text-emerald-50/80",
 };
 
 export function SyntaxHighlightedText({ text }: { text: string }) {
@@ -310,11 +310,11 @@ interface TerminalLine {
 }
 
 const outputColors: Record<TerminalOutputTone, string> = {
-  default: "text-neutral-400",
-  muted: "text-neutral-500",
-  accent: "text-lavender",
+  default: "text-emerald-100/70",
+  muted: "text-emerald-300/45",
+  accent: "text-lime-300",
   success: "text-emerald-300",
-  warning: "text-amber-300",
+  warning: "text-green-200",
 };
 
 function normalizeOutput(output: TerminalOutputLike): TerminalLine {
@@ -614,11 +614,11 @@ export function Terminal({
   );
 
   const prompt = (
-    <span className="text-neutral-500">
-      <span className="text-sky-500">{username}</span>
-      <span className="text-emerald-600">:</span>
-      <span className="text-sky-400">~</span>
-      <span className="text-neutral-500">$</span>{" "}
+    <span className="text-emerald-300/55">
+      <span className="text-emerald-300">{username}</span>
+      <span className="text-emerald-500">:</span>
+      <span className="text-lime-300">~</span>
+      <span className="text-emerald-200/70">$</span>{" "}
     </span>
   );
 
@@ -669,16 +669,16 @@ export function Terminal({
         className,
       )}
     >
-      <div className="overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900 shadow-2xl">
+      <div className="overflow-hidden rounded-lg border border-emerald-950 bg-[#03110a] shadow-[0_0_48px_rgba(16,185,129,0.12)]">
         {/* Title Bar */}
-        <div className="flex items-center gap-2 bg-neutral-800 px-4 py-3">
+        <div className="flex items-center gap-2 border-b border-emerald-950 bg-[#071a10] px-4 py-3">
           <div className="flex items-center gap-1.5">
             <div className="h-3 w-3 rounded-full bg-red-500 transition-colors hover:bg-red-600" />
             <div className="h-3 w-3 rounded-full bg-yellow-500 transition-colors hover:bg-yellow-600" />
             <div className="h-3 w-3 rounded-full bg-green-500 transition-colors hover:bg-green-600" />
           </div>
           <div className="flex-1 text-center">
-            <span className="truncate text-xs text-neutral-400">
+            <span className="truncate text-xs text-emerald-200/55">
               {username} — bash
             </span>
           </div>
@@ -712,7 +712,7 @@ export function Terminal({
                   <SyntaxHighlightedText text={line.content} />
                 </span>
               ) : line.type === "image" ? (
-                <div className="mt-2 w-full max-w-[14rem] overflow-hidden rounded-md border border-neutral-700 bg-black/40 p-2 md:max-w-[17rem]">
+                <div className="mt-2 w-full max-w-[14rem] overflow-hidden rounded-md border border-emerald-950 bg-black/40 p-2 md:max-w-[17rem]">
                   <Image
                     src={line.imageSrc!}
                     alt={line.imageAlt ?? "Terminal image output"}
@@ -721,7 +721,7 @@ export function Terminal({
                     className="block h-auto w-full rounded-sm object-cover"
                   />
                   {line.content ? (
-                    <span className="mt-2 block text-xs text-neutral-500">
+                    <span className="mt-2 block text-xs text-emerald-300/45">
                       {line.content}
                     </span>
                   ) : null}
@@ -732,7 +732,7 @@ export function Terminal({
                   target={line.external ? "_blank" : undefined}
                   rel={line.external ? "noopener noreferrer" : undefined}
                   className={cn(
-                    "inline-flex items-center gap-2 underline decoration-neutral-700 underline-offset-4 transition hover:text-white",
+                    "inline-flex items-center gap-2 underline decoration-emerald-950 underline-offset-4 transition hover:text-emerald-50",
                     outputColors[line.tone ?? "default"],
                   )}
                 >
@@ -750,7 +750,7 @@ export function Terminal({
             <div className="leading-relaxed whitespace-pre-wrap">
               {prompt}
               <SyntaxHighlightedText text={currentText} />
-              <span className="ml-0.5 inline-block h-4 w-2 bg-neutral-300 align-middle" />
+              <span className="ml-0.5 inline-block h-4 w-2 bg-emerald-200 align-middle" />
             </div>
           )}
 
@@ -762,7 +762,7 @@ export function Terminal({
               {prompt}
               <span
                 className={cn(
-                  "inline-block h-4 w-2 bg-neutral-300 align-middle transition-opacity duration-100",
+                  "inline-block h-4 w-2 bg-emerald-200 align-middle transition-opacity duration-100",
                   !cursorVisible && "opacity-0",
                 )}
               />
@@ -795,14 +795,14 @@ export function Terminal({
                     spellCheck={false}
                     className="absolute inset-0 h-full w-full opacity-0"
                   />
-                  <div className="min-h-5 break-all text-neutral-300">
+                  <div className="min-h-5 break-all text-emerald-50/80">
                     {inputValue ? <SyntaxHighlightedText text={inputValue} /> : null}
                     <span
                       className={cn(
                         "ml-0.5 inline-block h-4 w-2 align-middle transition-opacity duration-100",
                         canInteract && !interactiveBusy
-                          ? "bg-neutral-300"
-                          : "bg-neutral-500",
+                          ? "bg-emerald-200"
+                          : "bg-emerald-400/40",
                         !cursorVisible && "opacity-0",
                       )}
                     />
@@ -814,9 +814,9 @@ export function Terminal({
         </div>
 
         {interactive && quickActions.length > 0 && (
-          <div className="border-t border-neutral-800 bg-neutral-900/90 px-4 py-3">
+          <div className="border-t border-emerald-950 bg-[#07140d]/95 px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="mr-2 text-neutral-500">quick:</span>
+              <span className="mr-2 text-emerald-300/45">quick:</span>
               {quickActions.map((action) => (
                 <button
                   key={action.command}
@@ -826,7 +826,7 @@ export function Terminal({
                     void typeAndRunInteractiveCommand(action.command);
                   }}
                   disabled={!canInteract || interactiveBusy}
-                  className="rounded-full border border-neutral-700 px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] text-neutral-400 transition hover:border-sky-500/40 hover:text-sky-300 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-full border border-emerald-950 px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] text-emerald-200/65 transition hover:border-emerald-500/40 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {action.label}
                 </button>
