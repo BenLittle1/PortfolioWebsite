@@ -822,7 +822,7 @@ export function Terminal({
                   "var(--terminal-topbar-text, var(--terminal-text-muted, rgba(110, 231, 183, 0.5)))",
               }}
             >
-              <span className={cn(usernameEffect === "rainbow" && "terminal-rainbow-text")}>{username}</span> — bash
+              <span className={cn(usernameEffect === "rainbow" && "terminal-rainbow-text")}>{username} — bash</span>
             </span>
           </div>
           <div className="w-[52px]" />
