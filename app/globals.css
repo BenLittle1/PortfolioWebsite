@@ -125,7 +125,7 @@
     background-size: 220% 100%;
     -webkit-background-clip: text;
     background-clip: text;
-    color: transparent;
+    color: transparent !important;
     animation: terminal-rainbow-flow 2.4s linear infinite;
   }
 

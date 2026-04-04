@@ -432,6 +432,7 @@ export interface TerminalProps {
     command: string,
   ) => TerminalCommandResult | Promise<TerminalCommandResult>;
   quickActions?: TerminalQuickAction[];
+  usernameEffect?: "rainbow";
 }
 
 export function Terminal({
@@ -450,6 +451,7 @@ export function Terminal({
   interactive = false,
   onCommand,
   quickActions = [],
+  usernameEffect,
 }: TerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -820,7 +822,7 @@ export function Terminal({
                   "var(--terminal-topbar-text, var(--terminal-text-muted, rgba(110, 231, 183, 0.5)))",
               }}
             >
-              {username} — bash
+              <span className={cn(usernameEffect === "rainbow" && "terminal-rainbow-text")}>{username}</span> — bash
             </span>
           </div>
           <div className="w-[52px]" />

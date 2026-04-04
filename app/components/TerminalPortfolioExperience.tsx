@@ -1116,6 +1116,7 @@ export default function TerminalPortfolioExperience({
         commands={introCommands}
         outputs={introOutputs}
         username="bl@portfolio"
+        usernameEffect={theme.id === "multicolor" ? "rainbow" : undefined}
         typingSpeed={58}
         interactiveTypingSpeed={42}
         delayBetweenCommands={1200}
