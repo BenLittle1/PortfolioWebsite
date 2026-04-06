@@ -239,6 +239,8 @@ function getReferencedVirtualFile(normalizedCommand: string): VirtualFileName | 
   if (
     normalizedCommand === "dog" ||
     normalizedCommand === "dog --zoomies" ||
+    normalizedCommand === "dog -zoomies" ||
+    normalizedCommand === "dog zoomies" ||
     normalizedCommand === "dog -z" ||
     normalizedCommand === "zoomies" ||
     normalizedCommand === "show dog" ||
@@ -783,6 +785,8 @@ function getPortfolioCommandResult(
   if (
     normalized === "dog" ||
     normalized === "dog --zoomies" ||
+    normalized === "dog -zoomies" ||
+    normalized === "dog zoomies" ||
     normalized === "dog -z" ||
     normalized === "zoomies" ||
     normalized === "show dog" ||
@@ -792,6 +796,8 @@ function getPortfolioCommandResult(
   ) {
     const isZoomies =
       normalized === "dog --zoomies" ||
+      normalized === "dog -zoomies" ||
+      normalized === "dog zoomies" ||
       normalized === "dog -z" ||
       normalized === "zoomies";
 
