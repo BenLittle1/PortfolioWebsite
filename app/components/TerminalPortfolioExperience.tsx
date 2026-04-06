@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 import {
   Terminal,
   type TerminalInteractiveSelection,
   type TerminalCommandResult,
   type TerminalOutputLike,
+  type TerminalQuickAction,
 } from "@/components/ui/terminal";
 import {
   coreSkills,
@@ -368,7 +370,7 @@ function getThemeListingOutputs(
       (theme): TerminalOutputLike => ({
         content: `${theme.label.toLowerCase().padEnd(11, " ")} ${theme.summary}`,
         tone: theme.id === activeThemeId ? "success" : "default",
-        textEffect: theme.id === "multicolor" ? "rainbow" : undefined,
+        textEffect: theme.id === "rainbow" ? "rainbow" : undefined,
       }),
     ),
     {
@@ -389,7 +391,7 @@ function getThemeSelection(
       label: themeOption.label.toLowerCase(),
       command: `theme ${themeOption.id}`,
       color: themeOption.accent,
-      textEffect: themeOption.id === "multicolor" ? "rainbow" : undefined,
+      textEffect: themeOption.id === "rainbow" ? "rainbow" : undefined,
     })),
   };
 }
@@ -863,9 +865,242 @@ const quickActions = [
   { label: "skills", command: "cat skills.md" },
   { label: "contact", command: "cat contact.md" },
   { label: "resume", command: "open resume" },
+  { label: "vim", command: "vim" },
+  { label: "matrix", command: "cmatrix" },
   { label: "clear", command: "clear" },
   { label: "theme", command: "theme" },
 ];
+
+const MATRIX_CHARS =
+  "abcdefghijklmnopqrstuvwxyz0123456789@#$%^&*:,.ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍ";
+
+function randomChar() {
+  return MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)];
+}
+
+interface CmatrixStream {
+  y: number;
+  length: number;
+  speed: number;
+  delay: number;
+  chars: string[];
+}
+
+function createStream(rows: number): CmatrixStream {
+  const length = 3 + Math.floor(Math.random() * (rows - 3));
+  return {
+    y: -Math.floor(Math.random() * rows),
+    length,
+    speed: 1 + Math.floor(Math.random() * 2),
+    delay: Math.floor(Math.random() * rows),
+    chars: Array.from({ length: length + 1 }, randomChar),
+  };
+}
+
+const RAINBOW_COLORS = ["#ff6188", "#fc9867", "#ffd866", "#a9dc76", "#78dce8", "#ab9df2"];
+
+function MatrixRain({
+  color,
+  rainbow,
+  onExit,
+  className,
+  contentClassName,
+  quickActions,
+}: {
+  color: string;
+  rainbow?: boolean;
+  onExit: () => void;
+  className?: string;
+  contentClassName?: string;
+  quickActions: TerminalQuickAction[];
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const streamsRef = useRef<CmatrixStream[]>([]);
+  const frameRef = useRef(0);
+
+  useEffect(() => {
+    const handleKey = () => onExit();
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onExit]);
+
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    const content = contentRef.current;
+    if (!canvas || !content) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let animationId: number;
+    const fontSize = 14;
+    const lineHeight = fontSize * 1.4;
+    const colStep = 2;
+    const font = `${fontSize}px 'Space Mono', monospace`;
+
+    const setup = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = content.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+      ctx.scale(dpr, dpr);
+
+      ctx.font = font;
+      const charWidth = ctx.measureText("M").width;
+
+      const cols = Math.floor(rect.width / charWidth);
+      const rows = Math.floor(rect.height / lineHeight);
+
+      const activeColumns = Math.ceil(cols / colStep);
+      if (streamsRef.current.length !== activeColumns) {
+        streamsRef.current = Array.from({ length: activeColumns }, () =>
+          createStream(rows),
+        );
+      }
+
+      return { charWidth, cols, rows, width: rect.width, height: rect.height };
+    };
+
+    let grid = setup();
+
+    const draw = () => {
+      frameRef.current += 1;
+      const { charWidth, rows, width, height } = grid;
+      const streams = streamsRef.current;
+
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, width, height);
+      ctx.font = font;
+      ctx.textBaseline = "top";
+
+      for (let si = 0; si < streams.length; si++) {
+        const stream = streams[si];
+        const col = si * colStep;
+        const x = col * charWidth;
+
+        if (stream.delay > 0) {
+          stream.delay -= 1;
+          continue;
+        }
+
+        if (frameRef.current % stream.speed === 0) {
+          stream.y += 1;
+        }
+
+        for (let ci = 0; ci < stream.chars.length; ci++) {
+          if (Math.random() < 0.125) {
+            stream.chars[ci] = randomChar();
+          }
+        }
+
+        for (let ci = 0; ci <= stream.length; ci++) {
+          const row = stream.y - ci;
+          if (row < 0 || row >= rows) continue;
+
+          const y = row * lineHeight;
+          const char = stream.chars[ci % stream.chars.length];
+          const isHead = ci === 0;
+          const tailFade = ci / stream.length;
+
+          if (isHead) {
+            ctx.fillStyle = "#ffffff";
+            ctx.globalAlpha = 1;
+          } else {
+            ctx.fillStyle = rainbow
+              ? RAINBOW_COLORS[Math.floor(Math.random() * RAINBOW_COLORS.length)]
+              : color;
+            ctx.globalAlpha = Math.max(0.15, 1 - tailFade * 0.85);
+          }
+
+          ctx.fillText(char, x, y);
+        }
+
+        ctx.globalAlpha = 1;
+
+        if (stream.y - stream.length > rows) {
+          streams[si] = createStream(rows);
+        }
+      }
+
+      animationId = requestAnimationFrame(draw);
+    };
+
+    animationId = requestAnimationFrame(draw);
+
+    const handleResize = () => {
+      grid = setup();
+    };
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      cancelAnimationFrame(animationId);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [color, rainbow]);
+
+  return (
+    <div
+      className={cn("mx-auto w-full max-w-xl px-4 font-mono text-xs", className)}
+    >
+      <div className="overflow-hidden rounded-lg border border-neutral-800 bg-black shadow-2xl">
+        {/* Title bar */}
+        <div className="flex items-center gap-2 border-b border-neutral-800 bg-neutral-800 px-4 py-3">
+          <div className="flex items-center gap-1.5">
+            <div className="h-3 w-3 rounded-full bg-red-500" />
+            <div className="h-3 w-3 rounded-full bg-yellow-500" />
+            <div className="h-3 w-3 rounded-full bg-green-500" />
+          </div>
+          <div className="flex-1 text-center">
+            <span className={cn("truncate text-xs", rainbow && "terminal-rainbow-text")} style={{ color: rainbow ? undefined : "rgba(255, 255, 255, 0.5)" }}>
+              cmatrix
+            </span>
+          </div>
+          <div className="w-[52px]" />
+        </div>
+        {/* Canvas content area */}
+        <div
+          ref={contentRef}
+          className={cn("relative cursor-pointer overflow-hidden bg-black", contentClassName)}
+          onClick={onExit}
+        >
+          <canvas ref={canvasRef} className="block" />
+          <div
+            className="absolute bottom-3 left-0 right-0 text-center font-mono text-xs"
+            style={{ color: "#ffffff", opacity: 0.5 }}
+          >
+            press any key to exit
+          </div>
+        </div>
+        {/* Quick actions bar matching Terminal layout */}
+        <div className="border-t border-neutral-800 bg-neutral-900/95 px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-2" style={{ color: "rgba(255, 255, 255, 0.45)" }}>
+              quick:
+            </span>
+            {quickActions.map((action) => (
+              <button
+                key={action.command}
+                type="button"
+                disabled
+                className="rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] opacity-40 cursor-not-allowed"
+                style={{
+                  borderColor: "rgba(255, 255, 255, 0.2)",
+                  color: "rgba(255, 255, 255, 0.72)",
+                  backgroundColor: "rgba(0, 0, 0, 0.12)",
+                }}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface TerminalPortfolioExperienceProps {
   embedded?: boolean;
@@ -883,6 +1118,9 @@ export default function TerminalPortfolioExperience({
   const [deletedFiles, setDeletedFiles] = useState<VirtualFileName[]>([]);
   const [deleteNoticeSeen, setDeleteNoticeSeen] = useState(false);
   const [sessionStateReady, setSessionStateReady] = useState(false);
+  const [vimMode, setVimMode] = useState(false);
+  const [cmatrixActive, setCmatrixActive] = useState(false);
+  const mountTime = useRef(Date.now());
 
   const deletedFileSet = useMemo(() => new Set(deletedFiles), [deletedFiles]);
 
@@ -933,6 +1171,206 @@ export default function TerminalPortfolioExperience({
 
       if (!normalized) {
         return { outputs: [] };
+      }
+
+      if (vimMode) {
+        if (
+          normalized === ":q" ||
+          normalized === ":q!" ||
+          normalized === ":wq" ||
+          normalized === ":wq!" ||
+          normalized === ":x" ||
+          normalized === ":qa" ||
+          normalized === ":qa!"
+        ) {
+          setVimMode(false);
+
+          return {
+            outputs: [
+              {
+                content: normalized === ":wq" || normalized === ":wq!" || normalized === ":x"
+                  ? "E32: No file name — but you escaped, so that's something."
+                  : "You escaped vim. Most people aren't so lucky.",
+                tone: "success",
+              },
+            ],
+          };
+        }
+
+        if (normalized === ":w") {
+          return {
+            outputs: [
+              { content: "E32: No file name", tone: "warning" },
+            ],
+          };
+        }
+
+        if (normalized.startsWith(":w ")) {
+          return {
+            outputs: [
+              { content: `E212: Can't open file for writing: Permission denied`, tone: "warning" },
+            ],
+          };
+        }
+
+        if (normalized === ":help" || normalized === ":h") {
+          return {
+            outputs: [
+              { content: "help.txt    For Vim version 9.1.  Last change: right now", tone: "muted" },
+              { content: "" },
+              { content: "                  VIM - main help file", tone: "accent" },
+              { content: "" },
+              { content: "  Move around:  You can't. This is a fake terminal." },
+              { content: "  Close help:   :q<Enter>" },
+              { content: "  Exit Vim:     :q<Enter>  or  :qa!<Enter>  (careful!)" },
+              { content: "" },
+              { content: "  Honestly you just need :q and you're free.", tone: "muted" },
+            ],
+          };
+        }
+
+        if (
+          normalized === "i" ||
+          normalized === "a" ||
+          normalized === "o" ||
+          normalized === "c" ||
+          normalized === "s" ||
+          normalized === "r"
+        ) {
+          return {
+            outputs: [
+              { content: "-- INSERT --", tone: "success" },
+              { content: "Just kidding. You can't insert text into a fake terminal.", tone: "muted" },
+              { content: "Type :q to quit.", tone: "muted" },
+            ],
+          };
+        }
+
+        if (normalized === "dd") {
+          return {
+            outputs: [
+              { content: "1 line yanked into the void. Nothing was actually deleted.", tone: "muted" },
+            ],
+          };
+        }
+
+        if (normalized === "u") {
+          return {
+            outputs: [
+              { content: "Already at oldest change", tone: "warning" },
+            ],
+          };
+        }
+
+        if (normalized === ":set number" || normalized === ":set nu") {
+          return {
+            outputs: [
+              { content: "There are no lines to number. The buffer is a lie.", tone: "muted" },
+            ],
+          };
+        }
+
+        if (normalized.startsWith(":!")) {
+          return {
+            outputs: [
+              { content: "E145: Shell commands and strstrings not yet supported", tone: "warning" },
+              { content: "You're running a shell command from inside vim from inside a fake terminal. Inception denied.", tone: "muted" },
+            ],
+          };
+        }
+
+        if (normalized.startsWith(":")) {
+          const vimCmd = normalized.slice(1);
+          return {
+            outputs: [
+              { content: `E492: Not an editor command: ${vimCmd}`, tone: "warning" },
+            ],
+          };
+        }
+
+        return {
+          outputs: [
+            { content: `E354: Invalid register name: '${normalized.charAt(0)}'`, tone: "warning" },
+            { content: "Type :q to quit. You know you want to.", tone: "muted" },
+          ],
+        };
+      }
+
+      if (normalized === "vim" || normalized.startsWith("vim ") || normalized === "vi" || normalized.startsWith("vi ")) {
+        setVimMode(true);
+
+        const filename = normalized.replace(/^vi(?:m)?\s*/, "").trim() || "[No Name]";
+        const tilde = (content = "~"): TerminalOutputLike => ({ content, tone: "muted" });
+
+        return {
+          clear: true,
+          outputs: [
+            tilde(),
+            tilde(),
+            tilde(),
+            tilde(),
+            tilde(),
+            tilde(),
+            { content: "~                VIM - Vi IMproved", tone: "accent" },
+            tilde(),
+            { content: "~                 version 9.1" },
+            { content: "~             by Bram Moolenaar et al." },
+            tilde(),
+            { content: "~    Vim is open source and freely distributable" },
+            tilde(),
+            { content: "~           type  :q<Enter>          to exit" },
+            { content: "~           type  :help<Enter>       for help" },
+            tilde(),
+            tilde(),
+            tilde(),
+            tilde(),
+            tilde(),
+            { content: `"${filename}"                                    0,0-1         All`, tone: "muted" },
+          ],
+        };
+      }
+
+      if (normalized === "sudo" || normalized.startsWith("sudo ")) {
+        return {
+          outputs: [
+            { content: "bl is not in the sudoers file. This incident will be reported.", tone: "warning" },
+          ],
+        };
+      }
+
+      if (normalized === "uptime") {
+        const elapsed = Date.now() - mountTime.current;
+        const seconds = Math.floor(elapsed / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+
+        const parts: string[] = [];
+        if (hours > 0) parts.push(`${hours}h`);
+        if (minutes % 60 > 0 || hours > 0) parts.push(`${minutes % 60}m`);
+        parts.push(`${seconds % 60}s`);
+
+        return {
+          outputs: [
+            { content: `session uptime: ${parts.join(" ")}`, tone: "accent" },
+            {
+              content: hours >= 1
+                ? "You've been here a while. Everything okay?"
+                : minutes >= 5
+                  ? "Taking your time. I respect that."
+                  : "Just got here. Look around.",
+              tone: "muted",
+            },
+          ],
+        };
+      }
+
+      if (normalized === "cmatrix" || normalized === "matrix") {
+        setCmatrixActive(true);
+
+        return {
+          clear: true,
+          outputs: [],
+        };
       }
 
       const removalPlan = parseRemovalCommand(rawCommand, deletedFileSet);
@@ -1006,7 +1444,7 @@ export default function TerminalPortfolioExperience({
             {
               content: `active grade :: ${theme.label.toLowerCase()}`,
               tone: "accent",
-              textEffect: theme.id === "multicolor" ? "rainbow" : undefined,
+              textEffect: theme.id === "rainbow" ? "rainbow" : undefined,
             },
             ...getThemeListingOutputs(theme.id),
           ],
@@ -1047,7 +1485,7 @@ export default function TerminalPortfolioExperience({
               {
                 content: `${nextTheme.label.toLowerCase()} already active`,
                 tone: "success",
-                textEffect: nextTheme.id === "multicolor" ? "rainbow" : undefined,
+                textEffect: nextTheme.id === "rainbow" ? "rainbow" : undefined,
               },
             ],
           };
@@ -1060,7 +1498,7 @@ export default function TerminalPortfolioExperience({
             {
               content: `grade switched :: ${nextTheme.label.toLowerCase()}`,
               tone: "accent",
-              textEffect: nextTheme.id === "multicolor" ? "rainbow" : undefined,
+              textEffect: nextTheme.id === "rainbow" ? "rainbow" : undefined,
             },
           ],
         };
@@ -1107,16 +1545,40 @@ export default function TerminalPortfolioExperience({
         ],
       };
     },
-    [deletedFileSet, deleteNoticeSeen, deletedFiles, onThemeChange, theme.id, theme.label],
+    [deletedFileSet, deleteNoticeSeen, deletedFiles, onThemeChange, theme.id, theme.label, vimMode],
   );
+
+  const handleCmatrixExit = useCallback(() => {
+    setCmatrixActive(false);
+    requestAnimationFrame(() => {
+      document.getElementById("terminal-command-input")?.focus();
+    });
+  }, []);
+
+  const terminalClassName = embedded
+    ? "max-w-5xl px-0 text-sm md:text-[14px]"
+    : "max-w-[min(92vw,60rem)] px-0 text-sm";
+  const terminalContentClassName = embedded
+    ? "h-[18rem] md:h-[26rem]"
+    : "h-[min(30rem,58vh)] md:h-[min(38rem,64vh)]";
 
   const terminalInterface = (
     <div className="relative w-full" style={theme.terminalVars}>
+      {cmatrixActive ? (
+        <MatrixRain
+          color={theme.accent}
+          rainbow={theme.id === "rainbow"}
+          onExit={handleCmatrixExit}
+          className={terminalClassName}
+          contentClassName={terminalContentClassName}
+          quickActions={quickActions}
+        />
+      ) : null}
       <Terminal
         commands={introCommands}
         outputs={introOutputs}
         username="bl@portfolio"
-        usernameEffect={theme.id === "multicolor" ? "rainbow" : undefined}
+        usernameEffect={theme.id === "rainbow" ? "rainbow" : undefined}
         typingSpeed={58}
         interactiveTypingSpeed={42}
         delayBetweenCommands={1200}
@@ -1126,8 +1588,8 @@ export default function TerminalPortfolioExperience({
         interactive
         onCommand={resolvePortfolioCommand}
         quickActions={quickActions}
-        className={embedded ? "max-w-5xl px-0 text-sm md:text-[14px]" : "max-w-[min(92vw,60rem)] px-0 text-sm"}
-        contentClassName={embedded ? "h-[18rem] md:h-[26rem]" : "h-[min(30rem,58vh)] md:h-[min(38rem,64vh)]"}
+        className={cn(terminalClassName, cmatrixActive && "hidden")}
+        contentClassName={terminalContentClassName}
       />
     </div>
   );

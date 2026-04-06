@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 
 export type PortfolioTerminalThemeId =
   | "green"
-  | "multicolor"
+  | "rainbow"
   | "purple"
   | "ice"
   | "rose";
@@ -242,8 +242,8 @@ export const portfolioTerminalThemes: PortfolioTerminalTheme[] = [
     }),
   },
   {
-    id: "multicolor",
-    label: "Multicolour",
+    id: "rainbow",
+    label: "Rainbow",
     summary: "Mixed neon highlights.",
     accent: "#66d9ef",
     accentSoft: "#ff79c6",
@@ -310,11 +310,11 @@ const themeAliases: Record<string, PortfolioTerminalThemeId> = {
   emerald: "green",
   matrix: "green",
   default: "green",
-  multicolor: "multicolor",
-  multicolour: "multicolor",
-  multi: "multicolor",
-  rainbow: "multicolor",
-  prism: "multicolor",
+  rainbow: "rainbow",
+  multicolor: "rainbow",
+  multicolour: "rainbow",
+  multi: "rainbow",
+  prism: "rainbow",
   purple: "purple",
   lavender: "purple",
   violet: "purple",

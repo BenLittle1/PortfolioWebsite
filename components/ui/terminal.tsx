@@ -259,7 +259,7 @@ const tokenColorStyles: Record<TokenType, React.CSSProperties> = {
 };
 
 function isRainbowTerminalToken(value: string) {
-  return /^['"]?multicolou?r['"]?$/i.test(value);
+  return /^['"]?rainbow['"]?$/i.test(value);
 }
 
 export function SyntaxHighlightedText({ text }: { text: string }) {
@@ -351,8 +351,8 @@ const outputColorStyles: Record<TerminalOutputTone, React.CSSProperties> = {
 function renderTerminalText(text: string, textEffect?: "rainbow") {
   const rainbowPattern =
     textEffect === "rainbow"
-      ? /(multicolou?r|already active)/gi
-      : /(multicolou?r)/gi;
+      ? /(rainbow|already active)/gi
+      : /(rainbow)/gi;
 
   if (!rainbowPattern.test(text)) {
     if (textEffect === "rainbow") {
@@ -365,8 +365,7 @@ function renderTerminalText(text: string, textEffect?: "rainbow") {
   const parts = text.split(rainbowPattern);
 
   return parts.map((part, index) =>
-    part.toLowerCase() === "multicolour" ||
-    part.toLowerCase() === "multicolor" ||
+    part.toLowerCase() === "rainbow" ||
     part.toLowerCase() === "already active" ? (
       <span key={`${part}-${index}`} className="terminal-rainbow-text">
         {part}
